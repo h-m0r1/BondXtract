@@ -106,10 +106,3 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ## Author
 
 **Hitoshi Mori** - 2025
-
-## Acknowledgments
-
-- Crystallographic community for CIF format standards
-- Space group symmetry data sources
-- Web development community for modern browser technologies
-
