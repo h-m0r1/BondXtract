@@ -444,13 +444,13 @@
                 <div class="control-group">
                     <h3>🔍 Search Conditions</h3>
                     <div class="form-group">
-                        <label for="atom1">Element 1:</label>
+                        <label for="atom1">Atom 1:</label>
                         <select id="atom1">
                             <option value="">Please select</option>
                         </select>
                     </div>
                     <div class="form-group">
-                        <label for="atom2">Element 2:</label>
+                        <label for="atom2">Atom 2:</label>
                         <select id="atom2">
                             <option value="">Please select</option>
                         </select>
@@ -492,10 +492,10 @@
                 <h3>📋 Search Results</h3>
                 <div id="bondList" class="bond-list">
                                     <div class="bond-item bond-header">
-                    <div>Element 1</div>
-                    <div>Element 2</div>
+                    <div>Atom 1</div>
+                    <div>Atom 2</div>
                     <div>Distance (Å)</div>
-                    <div>Element 2 Cell Coordinates</div>
+                    <div>Atom 2 Cell Coordinates</div>
                     <div>Bond Vector</div>
                     <div>Bond Type</div>
                 </div>
@@ -1744,7 +1744,7 @@ Number of symmetry operations: ${crystalData.symmetryOperations.length}`, 'succe
                 atom2Select.innerHTML += `<option value="${symbol}">${symbol}</option>`;
             });
             
-            // Add "All atoms" option to Element 2 only
+            // Add "All atoms" option to Atom 2 only
             atom2Select.innerHTML += `<option value="ALL">All atoms</option>`;
             
             console.log('Updated select elements:', atom1Select.innerHTML, atom2Select.innerHTML);
@@ -2459,10 +2459,10 @@ Number of symmetry operations: ${crystalData.symmetryOperations.length}`, 'succe
             // Clear except header
             bondList.innerHTML = `
                 <div class="bond-item bond-header">
-                    <div>Element 1<br><small>Coordinates</small></div>
-                    <div>Element 2<br><small>Coordinates</small></div>
+                    <div>Atom 1<br><small>Coordinates</small></div>
+                    <div>Atom 2<br><small>Coordinates</small></div>
                     <div>Distance<br><small>(Å)</small></div>
-                    <div>Cell of Element 2<br><small>(i,j,k)</small></div>
+                    <div>Cell of Atom 2<br><small>(i,j,k)</small></div>
                     <div>Bond Vector</div>
                     <div>Bond Type</div>
                 </div>
