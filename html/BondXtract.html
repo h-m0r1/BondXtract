@@ -1,0 +1,2805 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="application-name" content="BondXtract">
+    <meta name="description" content="A browser-based tool for exploring and analyzing atomic bonds in crystal structures from CIF format">
+    <title>BondXtract</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica Neue', Arial, 'Noto Sans', sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+
+        .main-content {
+            padding: 30px;
+        }
+
+        .file-upload {
+            border: 3px dashed #ddd;
+            border-radius: 10px;
+            padding: 40px;
+            text-align: center;
+            margin-bottom: 30px;
+            transition: all 0.3s ease;
+            background: #fafafa;
+        }
+
+        .file-upload.dragover {
+            border-color: #4facfe;
+            background: #f0f8ff;
+        }
+
+        .file-upload input {
+            display: none;
+        }
+
+        .upload-btn {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+            padding: 15px 30px;
+            border: none;
+            border-radius: 25px;
+            font-size: 1.1em;
+            cursor: pointer;
+            transition: transform 0.2s ease;
+        }
+
+        .upload-btn:hover {
+            transform: translateY(-2px);
+        }
+
+        .controls {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .control-group {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 10px;
+            border-left: 4px solid #4facfe;
+        }
+
+        .control-group h3 {
+            margin-bottom: 15px;
+            color: #333;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 600;
+            color: #555;
+        }
+
+        .form-group input, .form-group select {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #ddd;
+            border-radius: 5px;
+            font-size: 1em;
+            transition: border-color 0.3s ease;
+        }
+
+        .form-group input:focus, .form-group select:focus {
+            outline: none;
+            border-color: #4facfe;
+        }
+
+        .search-btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 15px 30px;
+            border: none;
+            border-radius: 25px;
+            font-size: 1.1em;
+            cursor: pointer;
+            width: 100%;
+            transition: transform 0.2s ease;
+        }
+
+        .search-btn:hover {
+            transform: translateY(-2px);
+        }
+
+        .search-btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .results {
+            margin-top: 30px;
+        }
+
+        .results h3 {
+            margin-bottom: 20px;
+            color: #333;
+        }
+
+        .bond-list {
+            max-height: 500px;
+            overflow-y: auto;
+            overflow-x: auto;
+            border: 1px solid #ddd;
+            border-radius: 10px;
+        }
+        
+        .bond-list .bond-item {
+            min-width: 800px;
+        }
+        
+        /* レスポンシブ対応 */
+        @media (max-width: 768px) {
+            .bond-item {
+                grid-template-columns: 1fr 1fr 0.7fr 0.5fr 1fr 0.7fr;
+                gap: 8px;
+                padding: 8px;
+                font-size: 0.8em;
+            }
+            
+            .bond-list .bond-item {
+                min-width: 700px;
+            }
+        }
+
+        .bond-item {
+            display: grid;
+            grid-template-columns: 1fr 1fr 0.8fr 0.6fr 1fr 0.8fr;
+            gap: 10px;
+            padding: 12px;
+            border-bottom: 1px solid #eee;
+            align-items: start;
+            transition: background-color 0.2s ease;
+            font-size: 0.9em;
+        }
+
+        .bond-item:hover {
+            background-color: #f8f9fa;
+        }
+
+        .bond-item:last-child {
+            border-bottom: none;
+        }
+
+        .bond-header {
+            font-weight: bold;
+            background: #4facfe;
+            color: white;
+            border-radius: 10px 10px 0 0;
+        }
+
+        .distance {
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #4facfe;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .error {
+            background: #ffe6e6;
+            color: #d63031;
+            padding: 15px;
+            border-radius: 10px;
+            margin: 20px 0;
+            border-left: 4px solid #d63031;
+        }
+
+        .info {
+            background: #e6f3ff;
+            color: #0984e3;
+            padding: 15px;
+            border-radius: 10px;
+            margin: 20px 0;
+            border-left: 4px solid #0984e3;
+        }
+
+        .crystal-info {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+
+        .crystal-info h4 {
+            margin-bottom: 10px;
+            color: #333;
+        }
+
+        .crystal-info p {
+            margin: 5px 0;
+            color: #666;
+        }
+
+        .progress-message {
+            background: #f8f9fa;
+            border-left: 3px solid #4facfe;
+            padding: 8px 12px;
+            margin: 5px 0;
+            border-radius: 0 5px 5px 0;
+            font-size: 0.9em;
+            color: #333;
+            animation: fadeIn 0.3s ease-in;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-5px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        #progressMessages {
+            max-height: 200px;
+            overflow-y: auto;
+            background: white;
+            border-radius: 5px;
+            padding: 10px;
+            border: 1px solid #ddd;
+        }
+
+        .atom-list-container {
+            margin-top: 20px;
+            max-height: 400px;
+            overflow-y: auto;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 15px;
+            background: white;
+        }
+
+        .atom-list-container h4 {
+            color: #333;
+            margin-bottom: 15px;
+            border-bottom: 2px solid #4facfe;
+            padding-bottom: 5px;
+            position: sticky;
+            top: 0;
+            background: white;
+            z-index: 10;
+            padding: 10px 0;
+            margin-top: -15px;
+            margin-left: -15px;
+            margin-right: -15px;
+            padding-left: 15px;
+            padding-right: 15px;
+        }
+
+        .atom-symbol-group {
+            margin-bottom: 25px;
+        }
+
+        .atom-symbol-group h5 {
+            color: #4facfe;
+            margin-bottom: 10px;
+            font-size: 1.1em;
+            position: sticky;
+            top: 50px;
+            background: white;
+            z-index: 5;
+            padding: 5px 0;
+        }
+
+        .atom-table-container {
+            overflow-x: auto;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            background: white;
+        }
+
+        .atom-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.9em;
+        }
+
+        .atom-table th {
+            background: #4facfe;
+            color: white;
+            padding: 10px 8px;
+            text-align: left;
+            font-weight: 600;
+        }
+
+        .atom-table td {
+            padding: 8px;
+            border-bottom: 1px solid #eee;
+        }
+
+        .atom-table tr:nth-child(even) {
+            background: #f8f9fa;
+        }
+
+        .atom-table tr:hover {
+            background: #e3f2fd;
+        }
+
+        .atom-table td:last-child {
+            font-weight: 600;
+        }
+
+        .atom-table td:last-child:contains('Original') {
+            color: #27ae60;
+        }
+
+        .atom-table td:last-child:contains('Generated by Symmetry') {
+            color: #e67e22;
+        }
+
+        .download-btn {
+            background: linear-gradient(135deg, #27ae60 0%, #2ecc71 100%);
+            color: white;
+            padding: 12px 25px;
+            border: none;
+            border-radius: 20px;
+            font-size: 1em;
+            cursor: pointer;
+            margin-top: 15px;
+            transition: transform 0.2s ease;
+        }
+
+        .download-btn:hover {
+            transform: translateY(-2px);
+        }
+
+        .download-btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>⚛️ BondXtract</h1>
+            <p>Explore and analyze atomic bonds from crystal structure files</p>
+            <p style="font-size: 0.9em; opacity: 0.8; margin-top: 5px;" id="versionDisplay">Version Loading...</p>
+        </div>
+
+        <div class="main-content">
+            <div class="file-upload" id="fileUpload">
+                <p>📁 Drag & drop a CIF file or click to select</p>
+                <p style="font-size: 0.9em; color: #666; margin-top: 10px;">
+                    💡 If a space group number is detected, the necessary symmetry operation data will be automatically loaded
+                </p>
+                <input type="file" id="fileInput" accept=".cif">
+                <button class="upload-btn" onclick="document.getElementById('fileInput').click()">
+                    Select File
+                </button>
+            </div>
+
+            <div id="fileParseLog" class="crystal-info" style="display: none;">
+                <h4>📝 File Parsing Log</h4>
+                <div id="parseLogMessages" style="max-height: 300px; overflow-y: auto; background: white; border-radius: 5px; padding: 10px; border: 1px solid #ddd;">
+                    <!-- Parsing log messages will be displayed here -->
+                </div>
+            </div>
+
+            <div id="crystalInfo" class="crystal-info" style="display: none;">
+                <h4>📊 Crystal Structure Information</h4>
+                <div id="crystalDetails"></div>
+            </div>
+
+            <div class="controls">
+                <div class="control-group">
+                    <h3>🔍 Search Conditions</h3>
+                    <div class="form-group">
+                        <label for="atom1">Element 1:</label>
+                        <select id="atom1">
+                            <option value="">Please select</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="atom2">Element 2:</label>
+                        <select id="atom2">
+                            <option value="">Please select</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <h3>📏 Distance Range</h3>
+                    <div class="form-group">
+                        <label for="minDistance">Minimum Distance (Å):</label>
+                        <input type="number" id="minDistance" step="0.1" min="0" value="1.0">
+                    </div>
+                    <div class="form-group">
+                        <label for="maxDistance">Maximum Distance (Å):</label>
+                        <input type="number" id="maxDistance" step="0.1" min="0" value="5.0">
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <h3>🔧 Search Settings</h3>
+                    <div class="form-group">
+                        <label>Search Range:</label>
+                        <div style="background: #f8f9fa; padding: 10px; border-radius: 5px; border: 1px solid #ddd;">
+                            <small style="color: #666;">
+                                🎯 <strong>Auto-determined</strong>: Automatically calculates the mathematically optimal search range based on the maximum distance
+                            </small>
+                        </div>
+                    </div>
+                    <button class="search-btn" id="searchBtn" onclick="searchBonds()" disabled>
+                        Search Bonds
+                    </button>
+                    <button class="search-btn" id="stopBtn" onclick="stopSearch()" style="display: none; background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);">
+                        ⏹️ Stop Search
+                    </button>
+                </div>
+            </div>
+
+            <div id="results" class="results" style="display: none;">
+                <h3>📋 Search Results</h3>
+                <div id="bondList" class="bond-list">
+                                    <div class="bond-item bond-header">
+                    <div>Element 1</div>
+                    <div>Element 2</div>
+                    <div>Distance (Å)</div>
+                    <div>Element 2 Cell Coordinates</div>
+                    <div>Bond Vector</div>
+                    <div>Bond Type</div>
+                </div>
+                </div>
+                <button id="downloadBtn" class="download-btn" onclick="downloadResults()" style="display: none;">
+                    💾 Download Results (CSV)
+                </button>
+            </div>
+        </div>
+        
+        <div style="text-align: center; padding: 20px; background: #f8f9fa; border-top: 1px solid #ddd; color: #666; font-size: 0.9em;">
+            <p id="footerVersion">⚛️ BondXtract - Loading...</p>
+            <p style="margin-top: 5px; font-size: 0.8em;">A browser-based tool for exploring and analyzing atomic bonds in crystal structures</p>
+            <p style="margin-top: 10px; font-size: 0.75em; color: #999;">© 2025 Hitoshi Mori. MIT License.</p>
+        </div>
+    </div>
+
+
+    
+    <script>
+        // ========================================
+        // VERSION INFORMATION - EDIT ONLY HERE
+        // ========================================
+        const APP_VERSION = '0.1';
+        const APP_NAME = 'BondXtract';
+        const APP_DESCRIPTION = 'Crystal Structure Bond Analysis Tool';
+        // ========================================
+        
+        // Initialize version display on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            // Update page title
+            document.title = `${APP_NAME} v${APP_VERSION}`;
+            
+            // Update meta version tag
+            let metaVersion = document.querySelector('meta[name="version"]');
+            if (!metaVersion) {
+                metaVersion = document.createElement('meta');
+                metaVersion.name = 'version';
+                document.head.appendChild(metaVersion);
+            }
+            metaVersion.content = APP_VERSION;
+            
+            // Update header version display
+            const versionDisplay = document.getElementById('versionDisplay');
+            if (versionDisplay) {
+                versionDisplay.textContent = `Version ${APP_VERSION}`;
+            }
+            
+            // Update footer version display
+            const footerVersion = document.getElementById('footerVersion');
+            if (footerVersion) {
+                footerVersion.textContent = `⚛️ ${APP_NAME} v${APP_VERSION} - ${APP_DESCRIPTION}`;
+            }
+        });
+        
+        // Log version information to console
+        console.log(`${APP_NAME} v${APP_VERSION} - ${APP_DESCRIPTION}`);
+        
+        let crystalData = null;
+        let atoms = [];
+        let currentWorker = null; // Currently running Web Worker
+        let isSearching = false; // Flag indicating if search is in progress
+        let currentBonds = []; // Store current search results
+
+        // Covalent radius data (defined once in global scope)
+        const covalentRadii = {
+            'H': 0.31, 'He': 0.28, 'Li': 1.28, 'Be': 0.96, 'B': 0.84, 'C': 0.76, 'N': 0.71, 'O': 0.66, 'F': 0.57, 'Ne': 0.58,
+            'Na': 1.66, 'Mg': 1.41, 'Al': 1.21, 'Si': 1.11, 'P': 1.07, 'S': 1.05, 'Cl': 1.02, 'Ar': 1.06,
+            'K': 2.03, 'Ca': 1.76, 'Sc': 1.70, 'Ti': 1.60, 'V': 1.53, 'Cr': 1.39, 'Mn': 1.39, 'Fe': 1.32, 'Co': 1.26, 'Ni': 1.24, 'Cu': 1.32, 'Zn': 1.22,
+            'Ga': 1.22, 'Ge': 1.20, 'As': 1.19, 'Se': 1.20, 'Br': 1.20, 'Kr': 1.16,
+            'Rb': 2.20, 'Sr': 1.95, 'Y': 1.90, 'Zr': 1.75, 'Nb': 1.64, 'Mo': 1.54, 'Tc': 1.47, 'Ru': 1.46, 'Rh': 1.42, 'Pd': 1.39, 'Ag': 1.45, 'Cd': 1.44,
+            'In': 1.42, 'Sn': 1.39, 'Sb': 1.39, 'Te': 1.38, 'I': 1.39, 'Xe': 1.40,
+            'Cs': 2.44, 'Ba': 2.15, 'La': 2.07, 'Ce': 2.04, 'Pr': 2.03, 'Nd': 2.01, 'Pm': 1.99, 'Sm': 1.98, 'Eu': 1.98, 'Gd': 1.96, 'Tb': 1.94, 'Dy': 1.92, 'Ho': 1.92, 'Er': 1.89, 'Tm': 1.90, 'Yb': 1.87, 'Lu': 1.87,
+            'Hf': 1.75, 'Ta': 1.70, 'W': 1.62, 'Re': 1.51, 'Os': 1.44, 'Ir': 1.41, 'Pt': 1.36, 'Au': 1.36, 'Hg': 1.32, 'Tl': 1.45, 'Pb': 1.46, 'Bi': 1.48, 'Po': 1.40, 'At': 1.50, 'Rn': 1.50
+        };
+
+        // Global variable: store loaded JSON files
+        let loadedSpaceGroupData = {};
+        
+        // File upload processing
+        document.getElementById('fileInput').addEventListener('change', handleFileSelect);
+        
+        // Keyboard shortcut (Esc key to stop search)
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape' && isSearching) {
+                stopSearch();
+            }
+        });
+        
+        const fileUpload = document.getElementById('fileUpload');
+        
+        fileUpload.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            fileUpload.classList.add('dragover');
+        });
+        
+        fileUpload.addEventListener('dragleave', () => {
+            fileUpload.classList.remove('dragover');
+        });
+        
+        fileUpload.addEventListener('drop', (e) => {
+            e.preventDefault();
+            fileUpload.classList.remove('dragover');
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                handleFile(files[0]);
+            }
+        });
+
+        function handleFileSelect(event) {
+            console.log('handleFileSelect called');
+            const file = event.target.files[0];
+            console.log('Selected file:', file);
+            if (file) {
+                handleFile(file);
+            } else {
+                console.log('No file selected');
+            }
+        }
+
+        async function handleFile(file) {
+            console.log('handleFile called with file:', file.name);
+            const reader = new FileReader();
+            reader.onload = async function(e) {
+                console.log('File read successfully, content length:', e.target.result.length);
+                const content = e.target.result;
+                await parseCIF(content);
+            };
+            reader.onerror = function(e) {
+                console.error('Error reading file:', e);
+                showError('An error occurred while reading the file: ' + e.message);
+            };
+            reader.readAsText(file);
+        }
+
+
+
+        // Function to parse symmetry operations
+        async function parseSymmetryOperations(lines) {
+            const symmetryOps = [];
+            let hasSymmetryData = false;
+            let usedAlternativeKeyword = false;
+            let symmetryKeyword = '';
+            let bothKeywordsNotFound = false;
+            
+            // Internal function to parse symmetry operations (new algorithm)
+            function parseSymmetryLoop(targetKeyword) {
+                const ops = [];
+                
+                // 1. Detect loop_ from top to bottom of file
+                for (let i = 0; i < lines.length; i++) {
+                    const line = lines[i].trim();
+                    
+                    if (line === 'loop_') {
+                        console.log(`loop_ detected: line ${i + 1}`);
+                        
+                        // 2. Detect blank lines that appear after this line
+                        let blockEndIndex = -1;
+                        for (let j = i + 1; j < lines.length; j++) {
+                            if (lines[j].trim() === '') {
+                                blockEndIndex = j;
+                                console.log(`Blank line detected: line ${j + 1} (block end)`);
+                                break;
+                            }
+                        }
+                        
+                        // If no blank line is found, treat until end of file
+                        if (blockEndIndex === -1) {
+                            blockEndIndex = lines.length;
+                            console.log(`Treating until end of file as block`);
+                        }
+                        
+                        // 3. Data existing between them corresponds to list block
+                        const blockLines = lines.slice(i + 1, blockEndIndex);
+                        console.log(`Block line count: ${blockLines.length}`);
+                        
+                        // Recognize header section
+                        const headers = [];
+                        let dataStartIndex = -1;
+                        
+                        for (let k = 0; k < blockLines.length; k++) {
+                            const blockLine = blockLines[k].trim();
+                            
+                                                    if (blockLine.startsWith('_')) {
+                            // Header line
+                            headers.push(blockLine);
+                            console.log(`Header line detected: "${blockLine}"`);
+                        } else if (blockLine && !blockLine.startsWith('loop_')) {
+                            // Start of data row
+                            dataStartIndex = k;
+                            console.log(`Data row start: line ${k + 1} "${blockLine}"`);
+                            break;
+                        }
+                        }
+                        
+                        // 4. If the target tag does not exist in the header section, detect the next loop_
+                        const targetHeaderIndex = headers.indexOf(targetKeyword);
+                        if (targetHeaderIndex === -1) {
+                            console.log(`Target tag "${targetKeyword}" not found. Searching for next loop_.`);
+                            continue;
+                        }
+                        
+                        console.log(`Target tag "${targetKeyword}" detected: column position ${targetHeaderIndex}`);
+                        
+                        // Parse data rows
+                        if (dataStartIndex !== -1) {
+                            for (let k = dataStartIndex; k < blockLines.length; k++) {
+                                const dataLine = blockLines[k].trim();
+                                
+                                if (dataLine && !dataLine.startsWith('_') && !dataLine.startsWith('loop_')) {
+                                                                    console.log(`Parsing data line: "${dataLine}"`);
+                                
+                                // Single symmetry operation case (quoted line)
+                                if (dataLine.startsWith("'") && dataLine.endsWith("'")) {
+                                    const cleanOperation = dataLine.replace(/['"]/g, '');
+                                    ops.push(cleanOperation);
+                                    console.log(`Added symmetry operation: "${cleanOperation}"`);
+                                } else {
+                                    // Multi-column case parsing
+                                    const elements = parseCIFLine(dataLine);
+                                    if (elements.length > targetHeaderIndex) {
+                                        const operation = elements[targetHeaderIndex];
+                                        if (operation && operation.startsWith("'") && operation.endsWith("'")) {
+                                            const cleanOperation = operation.replace(/['"]/g, '');
+                                            ops.push(cleanOperation);
+                                            console.log(`Added symmetry operation: "${cleanOperation}"`);
+                                        } else {
+                                            console.log(`Skipping element not recognized as symmetry operation: "${operation}"`);
+                                        }
+                                    }
+                                }
+                                }
+                            }
+                        }
+                        
+                        // Exit if symmetry operations are found
+                        if (ops.length > 0) {
+                            console.log(`Detected ${ops.length} symmetry operations. Ending parsing.`);
+                            break;
+                        }
+                    }
+                }
+                
+                console.log(`parseSymmetryLoop result: ${ops.length} symmetry operations detected`);
+                return ops;
+            }
+            
+            // Function to split CIF line into elements (correctly handle quoted elements)
+            function parseCIFLine(line) {
+                const elements = [];
+                let currentElement = '';
+                let inQuotes = false;
+                let quoteChar = '';
+                
+                for (let i = 0; i < line.length; i++) {
+                    const char = line[i];
+                    
+                    if (!inQuotes && (char === "'" || char === '"')) {
+                        // start of quote
+                        inQuotes = true;
+                        quoteChar = char;
+                        currentElement += char;
+                    } else if (inQuotes && char === quoteChar) {
+                        // end of quote
+                        inQuotes = false;
+                        currentElement += char;
+                    } else if (!inQuotes && /\s/.test(char)) {
+                        // separate elements by whitespace (only if not in quotes)
+                        if (currentElement.trim()) {
+                            elements.push(currentElement.trim());
+                            currentElement = '';
+                        }
+                    } else {
+                        // normal character
+                        currentElement += char;
+                    }
+                }
+                
+                // add last element
+                if (currentElement.trim()) {
+                    elements.push(currentElement.trim());
+                }
+                
+                return elements;
+            }
+            
+            // first search _space_group_symop_operation_xyz (priority)
+            console.log('Searching for _space_group_symop_operation_xyz in CIF file...');
+            const primaryOps = parseSymmetryLoop('_space_group_symop_operation_xyz');
+            if (primaryOps.length > 0) {
+                symmetryOps.push(...primaryOps);
+                hasSymmetryData = true;
+                symmetryKeyword = '_space_group_symop_operation_xyz';
+                console.log('✅ Symmetry operations detected in CIF file using _space_group_symop_operation_xyz (priority use)');
+                addParseLog(`Using symmetry operation data from CIF file (_space_group_symop_operation_xyz: ${primaryOps.length} operations)`, 'success');
+            }
+            
+            // If _space_group_symop_operation_xyz is not found, search for _symmetry_equiv_pos_as_xyz
+            if (!hasSymmetryData) {
+                console.log('_space_group_symop_operation_xyz not found. Searching for _symmetry_equiv_pos_as_xyz...');
+                const alternativeOps = parseSymmetryLoop('_symmetry_equiv_pos_as_xyz');
+                if (alternativeOps.length > 0) {
+                    symmetryOps.push(...alternativeOps);
+                    hasSymmetryData = true;
+                    usedAlternativeKeyword = true;
+                    symmetryKeyword = '_symmetry_equiv_pos_as_xyz';
+                    console.log('✅ Symmetry operations detected in CIF file using _symmetry_equiv_pos_as_xyz (alternative keyword)');
+                    addParseLog(`Using symmetry operation data from CIF file (_symmetry_equiv_pos_as_xyz: ${alternativeOps.length} items)`, 'success');
+                } else {
+                    console.log('_symmetry_equiv_pos_as_xyz also not found in CIF file.');
+                    bothKeywordsNotFound = true;
+                }
+            }
+            
+            console.log(`Number of parsed symmetry operations: ${symmetryOps.length}`);
+            console.log('Parsed symmetry operations:', symmetryOps);
+            console.log('Used keyword:', symmetryKeyword);
+            console.log('Using alternative keyword:', usedAlternativeKeyword);
+            
+            // Only if no symmetry operation data exists in CIF file, get embedded data from space group number
+            if (!hasSymmetryData) {
+                console.log('No symmetry operation data found in CIF file. Attempting to get embedded data from space group number...');
+                addParseLog('No symmetry operation data found in CIF file. Attempting to get embedded data from space group number...', 'warning');
+                console.log('crystalData:', crystalData);
+                console.log('crystalData.spaceGroupNumber:', crystalData?.spaceGroupNumber);
+                
+                // Check if space group number is available
+                if (crystalData && crystalData.spaceGroupNumber) {
+                    try {
+                        const spaceGroupNumber = parseInt(crystalData.spaceGroupNumber);
+                        console.log(`Getting symmetry operations from embedded data for space group number ${spaceGroupNumber}...`);
+                        addParseLog(`Getting symmetry operations from embedded data for space group number ${spaceGroupNumber}...`, 'info');
+                        
+                        // Get symmetry operations from embedded data using space group number
+                        const operations = await getSymmetryOperationsBySpaceGroupNumber(spaceGroupNumber);
+                        
+                        if (operations && operations.length > 0) {
+                            symmetryOps.push(...operations);
+                            hasSymmetryData = true;
+                            symmetryKeyword = 'from_embedded_space_group_number';
+                            console.log(`Retrieved ${operations.length} symmetry operations from embedded data for space group number ${spaceGroupNumber}`);
+                            addParseLog(`Since no symmetry operation data exists in CIF file, retrieved symmetry operations from embedded data for space group number ${spaceGroupNumber} (${operations.length} items)`, 'success');
+                        } else {
+                            throw new Error(`Embedded data for space group number ${spaceGroupNumber} is empty`);
+                        }
+                    } catch (error) {
+                        console.error('Error getting embedded data from space group number:', error);
+                        addParseLog(`Error getting embedded data from space group number: ${error.message}`, 'error');
+                        throw new Error(`CIF file contains no symmetry operation information and failed to get from embedded data for space group number ${crystalData.spaceGroupNumber}: ${error.message}`);
+                    }
+                } else {
+                    addParseLog('CIF file contains no space group number information.', 'error');
+                    throw new Error('CIF file contains no _space_group_symop_operation_xyz or _symmetry_equiv_pos_as_xyz information, and space group number could not be obtained. Symmetry operation information is required.');
+                }
+            }
+            
+            if (symmetryOps.length === 0) {
+                throw new Error('Symmetry operation information could not be parsed correctly. Please check the CIF file format.');
+            }
+            
+            // Display warnings based on keyword usage
+            if (usedAlternativeKeyword) {
+                addParseLog('Note: _space_group_symop_operation_xyz not found, using _symmetry_equiv_pos_as_xyz instead. The recommended keyword is _space_group_symop_operation_xyz.', 'warning');
+            }
+            
+            if (bothKeywordsNotFound) {
+                addParseLog('Note: Neither _space_group_symop_operation_xyz nor _symmetry_equiv_pos_as_xyz found in CIF file. The recommended keyword is _space_group_symop_operation_xyz.', 'warning');
+            }
+            
+            return symmetryOps;
+        }
+
+        // Function to apply symmetry operation and transform coordinates
+        function applySymmetryOperation(x, y, z, operation) {
+            // Parse symmetry operation string and transform coordinates
+            // Example: '-x, -y, -z' -> (-x, -y, -z)
+            // Example: 'x+1/2, y+1/2, z' -> (x+0.5, y+0.5, z)
+            // Example: 'y, -x, -z' -> (y, -x, -z)
+            
+            let newX = 0, newY = 0, newZ = 0;
+            
+            // Parse each coordinate component
+            const parts = operation.split(',').map(part => part.trim());
+            
+            console.log(`Applying symmetry operation: ${operation}`);
+            console.log(`Original coordinates: (${x}, ${y}, ${z})`);
+            console.log(`Parsed parts:`, parts);
+            
+            if (parts.length >= 3) {
+                // Process X coordinate (evaluate parts[0] expression)
+                newX = evaluateCoordinateExpression(parts[0], x, y, z);
+                // Process Y coordinate (evaluate parts[1] expression)
+                newY = evaluateCoordinateExpression(parts[1], x, y, z);
+                // Process Z coordinate (evaluate parts[2] expression)
+                newZ = evaluateCoordinateExpression(parts[2], x, y, z);
+            }
+            
+            // Normalize coordinates to range 0 to less than 1
+            newX = normalizeFractionalCoordinate(newX);
+            newY = normalizeFractionalCoordinate(newY);
+            newZ = normalizeFractionalCoordinate(newZ);
+            
+            console.log(`Normalized coordinates: (${newX}, ${newY}, ${newZ})`);
+            
+            return { x: newX, y: newY, z: newZ };
+        }
+
+        // Function to evaluate coordinate expressions (supports complex symmetry operations)
+        function evaluateCoordinateExpression(expr, x, y, z) {
+            console.log(`Evaluating coordinate expression: "${expr}" (coordinate values: x=${x}, y=${y}, z=${z})`);
+            
+            // Normalize expression (remove whitespace)
+            let normalizedExpr = expr.replace(/\s+/g, '');
+            
+            // Convert fractions to decimals
+            normalizedExpr = normalizedExpr.replace(/(\d+)\/(\d+)/g, (match, num, den) => {
+                return (parseInt(num) / parseInt(den)).toString();
+            });
+            
+            console.log(`Normalized expression: "${normalizedExpr}"`);
+            
+            // Replace coordinate variables with numerical values (handle negative signs correctly)
+            let resultExpr = normalizedExpr;
+            
+            // Process negative variables (-x, -y, -z) first
+            resultExpr = resultExpr.replace(/-x/g, `(-${x})`);
+            resultExpr = resultExpr.replace(/-y/g, `(-${y})`);
+            resultExpr = resultExpr.replace(/-z/g, `(-${z})`);
+            
+            // Process positive variables (x, y, z)
+            resultExpr = resultExpr.replace(/x/g, `(${x})`);
+            resultExpr = resultExpr.replace(/y/g, `(${y})`);
+            resultExpr = resultExpr.replace(/z/g, `(${z})`);
+            
+            console.log(`Expression after variable substitution: "${resultExpr}"`);
+            
+            // Sign normalization processing
+            resultExpr = normalizeSigns(resultExpr);
+            console.log(`Expression after sign normalization: "${resultExpr}"`);
+            
+            // Verify that normalized expression is not empty
+            if (!resultExpr || resultExpr.trim() === '') {
+                throw new Error(`Expression became empty after sign normalization: original expression="${expr}"`);
+            }
+            
+            // safe expression evaluation
+            try {
+                // allow only basic arithmetic operations
+                const allowedChars = /^[0-9+\-*/().\s]+$/;
+                if (!allowedChars.test(resultExpr)) {
+                    throw new Error(`Invalid characters: ${resultExpr}`);
+                }
+                
+                // function evaluation (safe method)
+                const result = evaluateArithmeticExpression(resultExpr);
+                console.log(`Calculation result: ${result}`);
+                return result;
+            } catch (error) {
+                console.error(`Error evaluating expression: ${error.message}`);
+                console.error(`Problematic expression: ${resultExpr}`);
+                throw new Error(`Cannot evaluate symmetry operation expression "${expr}": ${error.message}`);
+            }
+        }
+        
+        // Function to normalize signs
+        function normalizeSigns(expr) {
+            let result = expr;
+            let previousResult = '';
+            let iteration = 0;
+            
+            console.log(`Starting sign normalization: "${expr}"`);
+            
+            // Repeat normalization until no changes occur
+            while (result !== previousResult && iteration < 10) {
+                previousResult = result;
+                iteration++;
+                
+                console.log(`Sign normalization iteration ${iteration}: "${result}"`);
+                
+                // Normalize consecutive signs
+                // ++ → +, -- → +, +- → -, -+ → -
+                result = result.replace(/\+\+/g, '+');  // Two positive signs → one positive sign
+                result = result.replace(/--/g, '+');    // Two negative signs → one positive sign
+                result = result.replace(/\+-/g, '-');   // Positive + negative → one negative sign
+                result = result.replace(/-\+/g, '-');   // Negative + positive → one negative sign
+                
+                // Also normalize signs within parentheses
+                result = result.replace(/\(([^)]*)\)/g, (match, inner) => {
+                    let normalizedInner = inner;
+                    normalizedInner = normalizedInner.replace(/\+\+/g, '+');
+                    normalizedInner = normalizedInner.replace(/--/g, '+');
+                    normalizedInner = normalizedInner.replace(/\+-/g, '-');
+                    normalizedInner = normalizedInner.replace(/-\+/g, '-');
+                    return `(${normalizedInner})`;
+                });
+            }
+            
+            // Final normalization: Remove leading single + from numbers (keep + as operator)
+            // Remove + at beginning of expression or after operators
+            result = result.replace(/^\+(\d)/g, '$1');  // Leading +number → number
+            result = result.replace(/^\+\.(\d)/g, '.$1');  // Leading +.number → .number
+            result = result.replace(/([+\-*/])+(\d)/g, '$1$2');  // +number after operator → operator+number
+            result = result.replace(/([+\-*/])+\.(\d)/g, '$1.$2');  // +.number after operator → operator+.number
+            
+            // Also remove leading + from numbers within parentheses (keep + as operator)
+            result = result.replace(/\(([^)]*)\)/g, (match, inner) => {
+                let normalizedInner = inner;
+                normalizedInner = normalizedInner.replace(/^\+(\d)/g, '$1');  // Leading +number within parentheses
+                normalizedInner = normalizedInner.replace(/^\+\.(\d)/g, '.$1');  // Leading +.number within parentheses
+                normalizedInner = normalizedInner.replace(/([+\-*/])+(\d)/g, '$1$2');  // +number after operator within parentheses
+                normalizedInner = normalizedInner.replace(/([+\-*/])+\.(\d)/g, '$1.$2');  // +.number after operator within parentheses
+                return `(${normalizedInner})`;
+            });
+            
+            console.log(`Sign normalization complete: "${result}"`);
+            return result;
+        }
+        
+        // Safe arithmetic expression evaluation function
+        function evaluateArithmeticExpression(expr) {
+            // Function to process parentheses
+            function evaluateParentheses(expr) {
+                const stack = [];
+                const result = [];
+                
+                for (let i = 0; i < expr.length; i++) {
+                    const char = expr[i];
+                    if (char === '(') {
+                        stack.push(i);
+                    } else if (char === ')') {
+                        if (stack.length === 0) {
+                            throw new Error('Invalid parenthesis matching');
+                        }
+                        const start = stack.pop();
+                        if (stack.length === 0) {
+                            // Evaluate outermost parentheses
+                            const innerExpr = expr.substring(start + 1, i);
+                            const innerResult = evaluateArithmeticExpression(innerExpr);
+                            result.push(innerResult);
+                        }
+                    } else if (stack.length === 0) {
+                        result.push(char);
+                    }
+                }
+                
+                if (stack.length > 0) {
+                    throw new Error('Unclosed parentheses');
+                }
+                
+                return result.join('');
+            }
+            
+            // Function to process multiplication and division
+            function evaluateMultiplicationDivision(expr) {
+                // More accurate token splitting (correctly recognize negative numbers)
+                const tokens = [];
+                let current = '';
+                let inNumber = false;
+                
+                for (let i = 0; i < expr.length; i++) {
+                    const char = expr[i];
+                    
+                    if (/\d/.test(char) || char === '.') {
+                        // number or decimal point
+                        current += char;
+                        inNumber = true;
+                    } else if (char === '-' && !inNumber && (i === 0 || /[+\-*/]/.test(expr[i-1]))) {
+                        // negative sign (start of number)
+                        current = char;
+                        inNumber = true;
+                    } else if (/[+\-*/]/.test(char)) {
+                        // operator
+                        if (current) {
+                            tokens.push(current);
+                            current = '';
+                            inNumber = false;
+                        }
+                        tokens.push(char);
+                    } else if (char === '(' || char === ')') {
+                        // parentheses
+                        if (current) {
+                            tokens.push(current);
+                            current = '';
+                            inNumber = false;
+                        }
+                        tokens.push(char);
+                    } else if (/\s/.test(char)) {
+                        // whitespace
+                        if (current) {
+                            tokens.push(current);
+                            current = '';
+                            inNumber = false;
+                        }
+                    }
+                }
+                
+                if (current) {
+                    tokens.push(current);
+                }
+                
+                console.log(`Tokens before multiplication/division processing:`, tokens);
+                
+                const result = [];
+                
+                for (let i = 0; i < tokens.length; i++) {
+                    const token = tokens[i];
+                    if (token === '*' || token === '/') {
+                        if (i === 0 || i === tokens.length - 1) {
+                            throw new Error('Invalid operator position');
+                        }
+                        
+                        const prev = parseFloat(result.pop());
+                        const next = parseFloat(tokens[i + 1]);
+                        
+                        if (isNaN(prev) || isNaN(next)) {
+                            throw new Error(`Failed to parse numbers: prev=${prev}, next=${next}`);
+                        }
+                        
+                        let operationResult;
+                        if (token === '*') {
+                            operationResult = prev * next;
+                        } else if (token === '/') {
+                            if (next === 0) {
+                                throw new Error('Division by zero');
+                            }
+                            operationResult = prev / next;
+                        }
+                        
+                        result.push(operationResult.toString());
+                        i++; // Skip next token
+                    } else {
+                        result.push(token);
+                    }
+                }
+                
+                console.log(`Tokens after multiplication/division processing:`, result);
+                return result.join('');
+            }
+            
+            // Function to process addition and subtraction
+            function evaluateAdditionSubtraction(expr) {
+                // More accurate token splitting
+                const tokens = [];
+                let current = '';
+                let inNumber = false;
+                
+                for (let i = 0; i < expr.length; i++) {
+                    const char = expr[i];
+                    
+                    if (/\d/.test(char) || char === '.') {
+                        // number or decimal point
+                        current += char;
+                        inNumber = true;
+                    } else if (char === '-' && !inNumber && (i === 0 || /[+\-]/.test(expr[i-1]))) {
+                        // negative sign (start of number)
+                        current = char;
+                        inNumber = true;
+                    } else if (/[+\-]/.test(char)) {
+                        // operator
+                        if (current) {
+                            tokens.push(current);
+                            current = '';
+                            inNumber = false;
+                        }
+                        tokens.push(char);
+                    } else if (/\s/.test(char)) {
+                        // whitespace
+                        if (current) {
+                            tokens.push(current);
+                            current = '';
+                            inNumber = false;
+                        }
+                    }
+                }
+                
+                if (current) {
+                    tokens.push(current);
+                }
+                
+                console.log(`Tokens before addition/subtraction processing:`, tokens);
+                
+                if (tokens.length === 0) {
+                    return 0;
+                }
+                
+                let result = parseFloat(tokens[0]) || 0;
+                
+                for (let i = 1; i < tokens.length; i += 2) {
+                    const operator = tokens[i];
+                    
+                    if (i + 1 >= tokens.length) {
+                        throw new Error(`Missing operand for operator "${operator}"`);
+                    }
+                    
+                    const operand = parseFloat(tokens[i + 1]);
+                    
+                    if (isNaN(operand)) {
+                        throw new Error(`Failed to parse number: operand=${tokens[i + 1]}, tokens=${JSON.stringify(tokens)}`);
+                    }
+                    
+                    if (operator === '+') {
+                        result += operand;
+                    } else if (operator === '-') {
+                        result -= operand;
+                    } else {
+                        throw new Error(`Invalid operator: ${operator}`);
+                    }
+                }
+                
+                console.log(`Addition/subtraction processing result: ${result}`);
+                return result;
+            }
+            
+            // Evaluate expression step by step
+            let processedExpr = evaluateParentheses(expr);
+            processedExpr = evaluateMultiplicationDivision(processedExpr);
+            const result = evaluateAdditionSubtraction(processedExpr);
+            
+            return result;
+        }
+
+        // Function to normalize fractional coordinates to range 0 to less than 1
+        function normalizeFractionalCoordinate(coord) {
+            // Normalize coordinates to range 0 to less than 1
+            let normalized = coord;
+            
+            // For negative values, add 1 until positive
+            while (normalized < 0) {
+                normalized += 1;
+            }
+            
+            // For values >= 1, subtract 1 until less than 1
+            while (normalized >= 1) {
+                normalized -= 1;
+            }
+            
+            // Consider floating point errors, adjust very small negative values to 0, values very close to 1 to less than 1
+            if (Math.abs(normalized) < 1e-10) {
+                normalized = 0;
+            } else if (Math.abs(normalized - 1) < 1e-10) {
+                normalized = 0;
+            }
+            
+            return normalized;
+        }
+
+        // Function to check if coordinates are duplicate
+        function isDuplicateCoordinate(coord1, coord2, tolerance = 0.0002) {
+            return Math.abs(coord1.x - coord2.x) <= tolerance &&
+                   Math.abs(coord1.y - coord2.y) <= tolerance &&
+                   Math.abs(coord1.z - coord2.z) <= tolerance;
+        }
+
+        // Function to generate atom list by applying symmetry operations
+        function generateSymmetryEquivalentAtoms(originalAtoms, symmetryOps) {
+            const allAtoms = [];
+            
+            console.log(`\n=== Starting symmetry operation application ===`);
+            console.log(`Original atom count: ${originalAtoms.length}`);
+            console.log(`Number of symmetry operations: ${symmetryOps.length}`);
+            console.log(`Symmetry operation list:`, symmetryOps);
+            
+            originalAtoms.forEach((originalAtom, atomIndex) => {
+                console.log(`\n--- Atom ${atomIndex + 1}: ${originalAtom.label} ---`);
+                
+                // Also normalize and add original atom coordinates
+                const normalizedX = normalizeFractionalCoordinate(originalAtom.x);
+                const normalizedY = normalizeFractionalCoordinate(originalAtom.y);
+                const normalizedZ = normalizeFractionalCoordinate(originalAtom.z);
+                
+                allAtoms.push({
+                    label: originalAtom.label,
+                    occupancy: originalAtom.occupancy,
+                    x: normalizedX,
+                    y: normalizedY,
+                    z: normalizedZ,
+                    symbol: originalAtom.symbol,
+                    original: true
+                });
+                
+                console.log(`Normalized coordinates of original atom ${originalAtom.label}: (${originalAtom.x}, ${originalAtom.y}, ${originalAtom.z}) → (${normalizedX}, ${normalizedY}, ${normalizedZ})`);
+                
+                // Apply each symmetry operation
+                let symmetryIndex = 0; // Counter for valid symmetry operations
+                let appliedCount = 0; // Number of actually applied symmetry operations
+                
+                symmetryOps.forEach((operation, index) => {
+                    if (operation === 'x, y, z') {
+                        console.log(`Skipping identity operation: ${operation} (index: ${index})`);
+                        return; // Skip identity operation
+                    }
+                    
+                    symmetryIndex++; // Increment counter for valid symmetry operations
+                    console.log(`\n=== Applying ${operation} to ${originalAtom.label} (index: ${index}, symmetryIndex: ${symmetryIndex}) ===`);
+                    
+                    const newCoords = applySymmetryOperation(originalAtom.x, originalAtom.y, originalAtom.z, operation);
+                    
+                    // Duplicate check
+                    const isDuplicate = allAtoms.some(existingAtom => 
+                        isDuplicateCoordinate(newCoords, existingAtom)
+                    );
+                    
+                    if (!isDuplicate) {
+                        appliedCount++;
+                        const newAtom = {
+                            label: `${originalAtom.label}_sym${symmetryIndex}`,
+                            occupancy: originalAtom.occupancy,
+                            x: newCoords.x,
+                            y: newCoords.y,
+                            z: newCoords.z,
+                            symbol: originalAtom.symbol,
+                            original: false,
+                            symmetryOp: operation
+                        };
+                        allAtoms.push(newAtom);
+                        console.log(`Added new atom: ${newAtom.label} at (${newCoords.x}, ${newCoords.y}, ${newCoords.z})`);
+                    } else {
+                        console.log(`Skipped due to duplicate: (${newCoords.x}, ${newCoords.y}, ${newCoords.z})`);
+                    }
+                });
+                
+                console.log(`Number of symmetry operations applied to atom ${originalAtom.label}: ${appliedCount}`);
+            });
+            
+            console.log(`\n=== Symmetry operation application complete ===`);
+            console.log(`Final atom count: ${allAtoms.length}`);
+            
+            return allAtoms;
+        }
+
+        // Function to parse atom list from CIF file
+        function parseAtomList(lines) {
+            console.log('=== Starting atom list parsing ===');
+            
+            // 1. Detect all loop_ blocks
+            const loopBlocks = [];
+            let currentBlock = null;
+            
+            for (let i = 0; i < lines.length; i++) {
+                const line = lines[i].trim();
+                
+                if (line === 'loop_') {
+                    // 新しいloop_ブロックの開始
+                    if (currentBlock) {
+                        loopBlocks.push(currentBlock);
+                    }
+                    currentBlock = {
+                        startLine: i,
+                        headers: [],
+                        data: []
+                    };
+                } else if (currentBlock && line) {
+                    if (line.trim().startsWith('_')) {
+                        // header line (remove indentation and save)
+                        currentBlock.headers.push(line.trim());
+                    } else if (currentBlock.headers.length > 0) {
+                        // data line
+                        currentBlock.data.push(line);
+                    }
+                } else if (currentBlock && !line && currentBlock.headers.length > 0) {
+                    // end of block with blank line
+                    loopBlocks.push(currentBlock);
+                    currentBlock = null;
+                }
+            }
+            
+            // add last block
+            if (currentBlock) {
+                loopBlocks.push(currentBlock);
+            }
+            
+                            console.log(`Number of detected loop_ blocks: ${loopBlocks.length}`);
+                
+                // 2. Search for block containing atom coordinates
+                let atomBlock = null;
+                for (let i = 0; i < loopBlocks.length; i++) {
+                    const block = loopBlocks[i];
+                    const headers = block.headers;
+                    
+                    console.log(`Block ${i + 1} headers:`, headers);
+                    
+                    // Check if all required coordinate headers are included
+                    const hasX = headers.some(h => h === '_atom_site_fract_x');
+                    const hasY = headers.some(h => h === '_atom_site_fract_y');
+                    const hasZ = headers.some(h => h === '_atom_site_fract_z');
+                    
+                    if (hasX && hasY && hasZ) {
+                        console.log(`Found atom coordinate block: block ${i + 1}`);
+                        atomBlock = block;
+                        break;
+                    }
+                }
+                
+                if (!atomBlock) {
+                    throw new Error('No loop_ block found containing atom coordinate information (_atom_site_fract_x, _atom_site_fract_y, _atom_site_fract_z).');
+                }
+            
+                // 3. determine method to obtain element information
+                const headers = atomBlock.headers;
+                let symbolColumn = -1;
+                let labelColumn = -1;
+                let xColumn = -1;
+                let yColumn = -1;
+                let zColumn = -1;
+                let occupancyColumn = -1;
+                
+                // Identify position of each column
+                headers.forEach((header, index) => {
+                    if (header === '_atom_site_fract_x') xColumn = index;
+                    else if (header === '_atom_site_fract_y') yColumn = index;
+                    else if (header === '_atom_site_fract_z') zColumn = index;
+                    else if (header === '_atom_site_type_symbol') symbolColumn = index;
+                    else if (header === '_atom_site_label') labelColumn = index;
+                    else if (header === '_atom_site_occupancy') occupancyColumn = index;
+                });
+                
+                console.log(`Column positions: x=${xColumn}, y=${yColumn}, z=${zColumn}, symbol=${symbolColumn}, label=${labelColumn}, occupancy=${occupancyColumn}`);
+                
+                // 4. parse atom data
+                const atoms = [];
+                const dataLines = atomBlock.data;
+            
+                            for (let i = 0; i < dataLines.length; i++) {
+                    const line = dataLines[i];
+                    const parts = line.split(/\s+/).filter(part => part.length > 0);
+                    
+                    if (parts.length < Math.max(xColumn, yColumn, zColumn) + 1) {
+                        console.warn(`Data row ${i + 1} has insufficient columns: ${parts.length} < ${Math.max(xColumn, yColumn, zColumn) + 1}`);
+                        continue;
+                    }
+                    
+                    // Get coordinates
+                    const x = parseFloat(parts[xColumn]);
+                    const y = parseFloat(parts[yColumn]);
+                    const z = parseFloat(parts[zColumn]);
+                    
+                    if (isNaN(x) || isNaN(y) || isNaN(z)) {
+                        console.warn(`Data row ${i + 1} has invalid coordinates: x=${parts[xColumn]}, y=${parts[yColumn]}, z=${parts[zColumn]}`);
+                        continue;
+                    }
+                    
+                    // Get occupancy (default is 1.0)
+                    let occupancy = 1.0;
+                    if (occupancyColumn >= 0 && occupancyColumn < parts.length) {
+                        const occValue = parseFloat(parts[occupancyColumn]);
+                        if (!isNaN(occValue)) {
+                            occupancy = occValue;
+                        }
+                    }
+                    
+                    // Get label
+                    let label = `atom_${i + 1}`;
+                    if (labelColumn >= 0 && labelColumn < parts.length) {
+                        label = parts[labelColumn];
+                    }
+                    
+                    // Determine element
+                    let symbol = '?';
+                
+                                    // Function to extract element symbol
+                    function extractElementSymbol(input) {
+                        if (!input || input === '?') {
+                            return '?';
+                        }
+                        
+                        console.log(`Extracting element symbol: "${input}"`);
+                        
+                        // Parse character by character from left
+                        let result = '';
+                        let foundAlphabet = false;
+                        let alphabetPart = '';
+                        
+                        for (let i = 0; i < input.length; i++) {
+                            const char = input[i];
+                            const isAlphabet = /[A-Za-z]/.test(char);
+                            
+                            console.log(`  Position ${i}: "${char}" (alphabet: ${isAlphabet})`);
+                            
+                            if (isAlphabet) {
+                                // Alphabet found
+                                foundAlphabet = true;
+                                alphabetPart += char;
+                                console.log(`    Alphabet part: "${alphabetPart}"`);
+                            } else {
+                                // Non-alphabet character
+                                if (foundAlphabet) {
+                                    // If alphabet already found, end here
+                                    console.log(`    Non-alphabet character after alphabet detected: ending at position ${i}`);
+                                    break;
+                                } else {
+                                    // If alphabet not found yet, add as is
+                                    result += char;
+                                    console.log(`    Adding character before alphabet: "${result}"`);
+                                }
+                            }
+                        }
+                        
+                        // Determine result
+                        if (foundAlphabet) {
+                            // If alphabet found, return only alphabet part
+                            result = alphabetPart;
+                            console.log(`  Returning only alphabet part: "${result}"`);
+                        } else {
+                            // If no alphabet found, use entire input
+                            result = input;
+                            console.log(`  No alphabet found, using entire input: "${result}"`);
+                        }
+                        
+                        console.log(`  Final result: "${result}"`);
+                        return result;
+                    }
+                
+                // 5. prioritize _atom_site_type_symbol
+                if (symbolColumn >= 0 && symbolColumn < parts.length) {
+                    const typeSymbol = parts[symbolColumn];
+                    if (typeSymbol && typeSymbol !== '?') {
+                        symbol = extractElementSymbol(typeSymbol);
+                    } else if (labelColumn >= 0 && labelColumn < parts.length) {
+                        // 6. if _atom_site_type_symbol is '?', estimate from _atom_site_label
+                        const atomLabel = parts[labelColumn];
+                        if (atomLabel && atomLabel !== '?') {
+                            symbol = extractElementSymbol(atomLabel);
+                        }
+                    }
+                } else if (labelColumn >= 0 && labelColumn < parts.length) {
+                    // if _atom_site_type_symbol is not present, estimate from _atom_site_label
+                    const atomLabel = parts[labelColumn];
+                    if (atomLabel && atomLabel !== '?') {
+                        symbol = extractElementSymbol(atomLabel);
+                    }
+                }
+                
+                    // 7. Error if element cannot be defined
+                    if (symbol === '?' || !symbol) {
+                        throw new Error(`Cannot define element for data row ${i + 1}. label: "${label}", type_symbol: "${symbolColumn >= 0 ? parts[symbolColumn] : 'N/A'}"`);
+                    }
+                    
+                    const atom = {
+                        label: label,
+                        symbol: symbol,
+                        x: x,
+                        y: y,
+                        z: z,
+                        occupancy: occupancy
+                    };
+                    
+                    atoms.push(atom);
+                    console.log(`Atom ${i + 1}: ${label} (${symbol}) at (${x}, ${y}, ${z}), occupancy: ${occupancy}`);
+                }
+                
+                console.log(`=== Atom list parsing complete: ${atoms.length} atoms found ===`);
+            return atoms;
+        }
+
+        async function parseCIF(content) {
+            console.log('parseCIF called with content length:', content.length);
+            console.log('Content preview:', content.substring(0, 200));
+            
+            // Clear file parsing log
+            clearParseLog();
+            addParseLog('Started parsing CIF file...', 'info');
+            
+            try {
+                const lines = content.split('\n');
+                console.log('Split into lines:', lines.length);
+                
+                crystalData = {
+                    cellLengths: {},
+                    cellAngles: {},
+                    atoms: [],
+                    spaceGroup: '',
+                    spaceGroupNumber: '',
+                    symmetryOperations: []
+                };
+
+                // Parse lattice constants and space group (execute first)
+                let spaceGroupFound = false;
+                let spaceGroupNumberFound = false;
+                let usedAlternativeSpaceGroupName = false;
+                let usedAlternativeSpaceGroupNumber = false;
+                let bothSpaceGroupNameKeywordsNotFound = false;
+                let bothSpaceGroupNumberKeywordsNotFound = false;
+                
+                for (let line of lines) {
+                    line = line.trim();
+                    
+                    // Parse lattice constants
+                    if (line.trim().startsWith('_cell_length_a')) {
+                        crystalData.cellLengths.a = parseFloat(line.trim().split(/\s+/)[1]);
+                    } else if (line.trim().startsWith('_cell_length_b')) {
+                        crystalData.cellLengths.b = parseFloat(line.trim().split(/\s+/)[1]);
+                    } else if (line.trim().startsWith('_cell_length_c')) {
+                        crystalData.cellLengths.c = parseFloat(line.trim().split(/\s+/)[1]);
+                    } else if (line.trim().startsWith('_cell_angle_alpha')) {
+                        crystalData.cellAngles.alpha = parseFloat(line.trim().split(/\s+/)[1]);
+                    } else if (line.trim().startsWith('_cell_angle_beta')) {
+                        crystalData.cellAngles.beta = parseFloat(line.trim().split(/\s+/)[1]);
+                    } else if (line.trim().startsWith('_cell_angle_gamma')) {
+                        crystalData.cellAngles.gamma = parseFloat(line.trim().split(/\s+/)[1]);
+                    }
+                    
+                    // Parse space group name (with priority)
+                    if (!spaceGroupFound) {
+                        if (line.trim().startsWith('_space_group_name_H-M_alt')) {
+                            console.log('Raw line for _space_group_name_H-M_alt:', line);
+                            const parts = line.trim().split("'");
+                            console.log('Split parts:', parts);
+                            if (parts.length > 1) {
+                                crystalData.spaceGroup = parts[1];
+                            } else {
+                                // Fallback: try splitting by whitespace
+                                const spaceGroupParts = line.trim().split(/\s+/);
+                                if (spaceGroupParts.length > 1) {
+                                    crystalData.spaceGroup = spaceGroupParts[1];
+                                }
+                            }
+                            spaceGroupFound = true;
+                            console.log('Space group name detected: _space_group_name_H-M_alt =', crystalData.spaceGroup);
+                            addParseLog('Space group name detected: _space_group_name_H-M_alt', 'success');
+                        } else if (line.trim().startsWith('_symmetry_space_group_name_H-M')) {
+                            console.log('Raw line for _symmetry_space_group_name_H-M:', line);
+                            const parts = line.trim().split("'");
+                            console.log('Split parts:', parts);
+                            if (parts.length > 1) {
+                                crystalData.spaceGroup = parts[1];
+                            } else {
+                                // Fallback: try splitting by whitespace
+                                const spaceGroupParts = line.trim().split(/\s+/);
+                                if (spaceGroupParts.length > 1) {
+                                    crystalData.spaceGroup = spaceGroupParts[1];
+                                }
+                            }
+                            spaceGroupFound = true;
+                            usedAlternativeSpaceGroupName = true;
+                            console.log('Space group name detected: _symmetry_space_group_name_H-M (alternative keyword) =', crystalData.spaceGroup);
+                        }
+                    }
+                    
+                    // Parse space group number (with priority)
+                    if (!spaceGroupNumberFound) {
+                        if (line.trim().startsWith('_space_group_IT_number')) {
+                            crystalData.spaceGroupNumber = line.trim().split(/\s+/)[1];
+                            spaceGroupNumberFound = true;
+                            console.log('Space group number detected: _space_group_IT_number =', crystalData.spaceGroupNumber);
+                            addParseLog(`Space group number detected: _space_group_IT_number = ${crystalData.spaceGroupNumber}`, 'success');
+                        } else if (line.trim().startsWith('_symmetry_Int_Tables_number')) {
+                            crystalData.spaceGroupNumber = line.trim().split(/\s+/)[1];
+                            spaceGroupNumberFound = true;
+                            usedAlternativeSpaceGroupNumber = true;
+                            console.log('Space group number detected: _symmetry_Int_Tables_number =', crystalData.spaceGroupNumber);
+                        }
+                    }
+                }
+                
+                // Check if both keywords were not found
+                if (!spaceGroupFound) {
+                    bothSpaceGroupNameKeywordsNotFound = true;
+                }
+                if (!spaceGroupNumberFound) {
+                    bothSpaceGroupNumberKeywordsNotFound = true;
+                }
+
+                // Processing when space group number is detected (embedded data available)
+                if (crystalData.spaceGroupNumber) {
+                    const spaceGroupNumber = parseInt(crystalData.spaceGroupNumber);
+                    console.log(`Space group number ${spaceGroupNumber} detected.`);
+                    addParseLog(`Space group number ${spaceGroupNumber} detected.`, 'info');
+                    
+                    // Check if embedded data exists (for fallback)
+                    if (typeof embeddedSpaceGroupData !== 'undefined' && embeddedSpaceGroupData[spaceGroupNumber]) {
+                        console.log(`Embedded data for space group ${spaceGroupNumber} is available (for fallback)`);
+                        addParseLog(`Embedded data for space group ${spaceGroupNumber} is available (for fallback)`, 'info');
+                    } else {
+                        console.log(`No data for space group ${spaceGroupNumber} in embedded data.`);
+                        addParseLog(`Data for space group ${spaceGroupNumber} is not included in embedded data.`, 'warning');
+                    }
+                }
+
+                // Parse symmetry operations (execute after getting space group information)
+                crystalData.symmetryOperations = await parseSymmetryOperations(lines);
+                
+                // Display warnings for alternative keywords usage
+                if (bothSpaceGroupNameKeywordsNotFound) {
+                    addParseLog('Note: Neither _space_group_name_H-M_alt nor _symmetry_space_group_name_H-M found in CIF file. The recommended keyword is _space_group_name_H-M_alt.', 'warning');
+                } else if (usedAlternativeSpaceGroupName) {
+                    addParseLog('Note: _space_group_name_H-M_alt not found, using _symmetry_space_group_name_H-M instead. The recommended keyword is _space_group_name_H-M_alt.', 'warning');
+                }
+                
+                if (bothSpaceGroupNumberKeywordsNotFound) {
+                    addParseLog('Note: Neither _space_group_IT_number nor _symmetry_Int_Tables_number found in CIF file. The recommended keyword is _space_group_IT_number.', 'warning');
+                } else if (usedAlternativeSpaceGroupNumber) {
+                    addParseLog('Note: _space_group_IT_number not found, using _symmetry_Int_Tables_number instead. The recommended keyword is _space_group_IT_number.', 'warning');
+                }
+
+                // Parse atom list
+                crystalData.atoms = parseAtomList(lines);
+
+                // Debug logs
+                console.log('Parsed atom data:', crystalData.atoms);
+                console.log('Symmetry operations:', crystalData.symmetryOperations);
+                console.log('Space group number:', crystalData.spaceGroupNumber);
+                console.log('Space group name:', crystalData.spaceGroup);
+                
+                // Apply symmetry operations to generate atom list
+                const originalAtomCount = crystalData.atoms.length;
+                crystalData.atoms = generateSymmetryEquivalentAtoms(crystalData.atoms, crystalData.symmetryOperations);
+                const totalAtomCount = crystalData.atoms.length;
+
+                // Remove duplicates from elements and add to select boxes
+                const uniqueSymbols = [...new Set(crystalData.atoms.map(atom => atom.symbol))];
+                atoms = uniqueSymbols;
+                
+                console.log('Generated elements:', uniqueSymbols);
+                console.log('atoms variable:', atoms);
+                
+                updateAtomSelects(uniqueSymbols);
+                displayCrystalInfo();
+                document.getElementById('searchBtn').disabled = false;
+                
+                addParseLog(`CIF file parsing completed. Generated atom list by applying symmetry operations.
+Original atom count: ${originalAtomCount} → After symmetry operations: ${totalAtomCount}
+Number of symmetry operations: ${crystalData.symmetryOperations.length}`, 'success');
+                
+            } catch (error) {
+                showError('An error occurred while parsing the CIF file: ' + error.message);
+            }
+        }
+
+
+
+        function updateAtomSelects(symbols) {
+            console.log('updateAtomSelects called with symbols:', symbols);
+            
+            const atom1Select = document.getElementById('atom1');
+            const atom2Select = document.getElementById('atom2');
+            
+            console.log('Found select elements:', atom1Select, atom2Select);
+            
+            // Clear existing options
+            atom1Select.innerHTML = '<option value="">Please select</option>';
+            atom2Select.innerHTML = '<option value="">Please select</option>';
+            
+            // Add new options
+            symbols.forEach(symbol => {
+                atom1Select.innerHTML += `<option value="${symbol}">${symbol}</option>`;
+                atom2Select.innerHTML += `<option value="${symbol}">${symbol}</option>`;
+            });
+            
+            // Add "All atoms" option to Element 2 only
+            atom2Select.innerHTML += `<option value="ALL">All atoms</option>`;
+            
+            console.log('Updated select elements:', atom1Select.innerHTML, atom2Select.innerHTML);
+        }
+
+        function displayCrystalInfo() {
+            if (!crystalData) return;
+            
+            const details = document.getElementById('crystalDetails');
+            details.innerHTML = `
+                <p><strong>Lattice Constants:</strong> a = ${crystalData.cellLengths.a?.toFixed(3) || 'N/A'} Å, 
+                b = ${crystalData.cellLengths.b?.toFixed(3) || 'N/A'} Å, 
+                c = ${crystalData.cellLengths.c?.toFixed(3) || 'N/A'} Å</p>
+                <p><strong>Lattice Angles:</strong> α = ${crystalData.cellAngles.alpha?.toFixed(1) || 'N/A'}°, 
+                β = ${crystalData.cellAngles.beta?.toFixed(1) || 'N/A'}°, 
+                γ = ${crystalData.cellAngles.gamma?.toFixed(1) || 'N/A'}°</p>
+                <p><strong>Space Group:</strong> ${crystalData.spaceGroup || 'N/A'} ${crystalData.spaceGroupNumber ? `(No. ${crystalData.spaceGroupNumber})` : ''}</p>
+                <p><strong>Number of Atoms:</strong> ${crystalData.atoms.length}</p>
+                <p><strong>Elements:</strong> ${atoms.join(', ')}</p>
+            `;
+            
+            // 原子リストの詳細表示を追加
+            displayAtomList();
+            
+            document.getElementById('crystalInfo').style.display = 'block';
+        }
+
+        function displayAtomList() {
+            if (!crystalData || !crystalData.atoms) return;
+            
+            // Create or get element for atom list display
+            let atomListContainer = document.getElementById('atomListContainer');
+            if (!atomListContainer) {
+                atomListContainer = document.createElement('div');
+                atomListContainer.id = 'atomListContainer';
+                atomListContainer.className = 'atom-list-container';
+                document.getElementById('crystalInfo').appendChild(atomListContainer);
+            }
+            
+            // Group by element
+            const atomsBySymbol = {};
+            crystalData.atoms.forEach(atom => {
+                if (!atomsBySymbol[atom.symbol]) {
+                    atomsBySymbol[atom.symbol] = [];
+                }
+                atomsBySymbol[atom.symbol].push(atom);
+            });
+            
+            let atomListHTML = '<h4>Details of Discovered Atoms (scroll to view)</h4>';
+            
+            Object.keys(atomsBySymbol).forEach(symbol => {
+                const symbolAtoms = atomsBySymbol[symbol];
+                atomListHTML += `
+                    <div class="atom-symbol-group">
+                        <h5>${symbol} atoms (${symbolAtoms.length})</h5>
+                        <div class="atom-table-container">
+                            <table class="atom-table">
+                                <thead>
+                                    <tr>
+                                        <th>Label</th>
+                                        <th>Occupancy</th>
+                                        <th>X Coordinate</th>
+                                        <th>Y Coordinate</th>
+                                        <th>Z Coordinate</th>
+                                        <th>Type</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                `;
+                
+                symbolAtoms.forEach(atom => {
+                    const type = atom.original ? 'Original' : 'Generated by Symmetry';
+                    atomListHTML += `
+                        <tr>
+                            <td>${atom.label}</td>
+                            <td>${atom.occupancy.toFixed(4)}</td>
+                            <td>${atom.x.toFixed(6)}</td>
+                            <td>${atom.y.toFixed(6)}</td>
+                            <td>${atom.z.toFixed(6)}</td>
+                            <td>${type}</td>
+                        </tr>
+                    `;
+                });
+                
+                atomListHTML += `
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            atomListContainer.innerHTML = atomListHTML;
+        }
+
+        function searchBonds() {
+            const atom1 = document.getElementById('atom1').value;
+            const atom2 = document.getElementById('atom2').value;
+            const minDistance = parseFloat(document.getElementById('minDistance').value);
+            const maxDistance = parseFloat(document.getElementById('maxDistance').value);
+            // search range is automatically determined, so use fixed value
+            const searchRange = 0; // not used, but kept for compatibility
+
+            if (!atom1 || !atom2) {
+                showError('Please select both elements.');
+                return;
+            }
+
+            if (minDistance >= maxDistance) {
+                showError('Minimum distance must be less than maximum distance.');
+                return;
+            }
+
+            // if already searching, stop
+            if (isSearching) {
+                stopSearch();
+                return;
+            }
+
+            // start search
+            isSearching = true;
+            updateSearchButtons();
+            showLoading();
+            
+            // execute directly (without using Web Worker)
+            setTimeout(() => {
+                if (isSearching) { // execute only if not stopped
+                    try {
+
+                        
+                        // define function for progress message
+                        function postProgressMessage(message) {
+                            updateProgressMessage(message);
+                        }
+                        
+                        function getBondTypeOptimized(distance, symbol1, symbol2) {
+                            
+                            // improved fallback processing
+                            function getEstimatedRadius(symbol) {
+                                if (covalentRadii[symbol]) {
+                                    return covalentRadii[symbol];
+                                }
+                                
+                                // estimate atomic number from element symbol
+                                const elementSymbols = ['H', 'He', 'Li', 'Be', 'B', 'C', 'N', 'O', 'F', 'Ne', 'Na', 'Mg', 'Al', 'Si', 'P', 'S', 'Cl', 'Ar', 'K', 'Ca', 'Sc', 'Ti', 'V', 'Cr', 'Mn', 'Fe', 'Co', 'Ni', 'Cu', 'Zn', 'Ga', 'Ge', 'As', 'Se', 'Br', 'Kr', 'Rb', 'Sr', 'Y', 'Zr', 'Nb', 'Mo', 'Tc', 'Ru', 'Rh', 'Pd', 'Ag', 'Cd', 'In', 'Sn', 'Sb', 'Te', 'I', 'Xe', 'Cs', 'Ba', 'La', 'Ce', 'Pr', 'Nd', 'Pm', 'Sm', 'Eu', 'Gd', 'Tb', 'Dy', 'Ho', 'Er', 'Tm', 'Yb', 'Lu', 'Hf', 'Ta', 'W', 'Re', 'Os', 'Ir', 'Pt', 'Au', 'Hg', 'Tl', 'Pb', 'Bi', 'Po', 'At', 'Rn'];
+                                const atomicNumber = elementSymbols.indexOf(symbol) + 1;
+                                
+                                if (atomicNumber > 0) {
+                                    // estimated radius based on atomic number (simplified version)
+                                    if (atomicNumber <= 10) {
+                                        return 0.5 + (atomicNumber * 0.1); // 1st period: 0.6-1.5 Å
+                                    } else if (atomicNumber <= 18) {
+                                        return 1.0 + ((atomicNumber - 10) * 0.08); // 2nd period: 1.08-1.64 Å
+                                    } else if (atomicNumber <= 36) {
+                                        return 1.5 + ((atomicNumber - 18) * 0.03); // 3rd-4th period: 1.53-2.04 Å
+                                    } else {
+                                        return 2.0 + ((atomicNumber - 36) * 0.02); // 5th period and beyond: 2.02+ Å
+                                    }
+                                }
+                                
+                                // final fallback
+                                return 1.5;
+                            }
+                            
+                            const r1 = getEstimatedRadius(symbol1);
+                            const r2 = getEstimatedRadius(symbol2);
+                            const sumRadii = r1 + r2;
+                            
+                            // warning if default value is used
+                            if (!covalentRadii[symbol1] || !covalentRadii[symbol2]) {
+                                const unknownElements = [];
+                                if (!covalentRadii[symbol1]) unknownElements.push(symbol1);
+                                if (!covalentRadii[symbol2]) unknownElements.push(symbol2);
+                                
+                                console.warn(`Warning: Covalent radius data for elements ${unknownElements.join(', ')} does not exist. Using estimated values.`);
+                                
+                                // display warning only once
+                                if (!window.bondWarningShown) {
+                                    showInfo(`⚠️ Warning: Covalent radius data for elements ${unknownElements.join(', ')} does not exist. Using estimated values. The reliability of the results may be reduced.`);
+                                    window.bondWarningShown = true;
+                                }
+                            }
+                            
+                            if (distance <= sumRadii * 1.2) {
+                                return 'Strong_Bond';
+                            } else if (distance <= sumRadii * 1.5) {
+                                return 'Weak_Bond';
+                            } else {
+                                return 'Non_Bond';
+                            }
+                        }
+                        
+                        function calculateOptimalSearchRanges(atoms1, maxDist, a, b, c) {
+                            let n2_min = Infinity, n2_max = -Infinity;
+                            let m2_min = Infinity, m2_max = -Infinity;
+                            let l2_min = Infinity, l2_max = -Infinity;
+                            
+                            atoms1.forEach(atom1 => {
+                                const i1 = atom1.x;
+                                const j1 = atom1.y;
+                                const k1 = atom1.z;
+                                
+                                const n2_x = Math.floor((maxDist + i1 * a) / a);
+                                const n2_y = Math.ceil((-maxDist + i1 * a) / a);
+                                const m2_x = Math.floor((maxDist + j1 * b) / b);
+                                const m2_y = Math.ceil((-maxDist + j1 * b) / b);
+                                const l2_x = Math.floor((maxDist + k1 * c) / c);
+                                const l2_y = Math.ceil((-maxDist + k1 * c) / c);
+                                
+                                n2_min = Math.min(n2_min, n2_y);
+                                n2_max = Math.max(n2_max, n2_x);
+                                m2_min = Math.min(m2_min, m2_y);
+                                m2_max = Math.max(m2_max, m2_x);
+                                l2_min = Math.min(l2_min, l2_y);
+                                l2_max = Math.max(l2_max, l2_x);
+                            });
+                            
+                            return { n2_min, n2_max, m2_min, m2_max, l2_min, l2_max };
+                        }
+                        
+                        function findAtomsInRange(centerAtom, targetSymbol, searchRanges, crystalData, a, b, c, minDistSq, maxDistSq) {
+                            const nearbyAtoms = [];
+                            const atoms2 = crystalData.atoms.filter(atom => atom.symbol === targetSymbol);
+                            
+                            for (let n2 = searchRanges.n2_min; n2 <= searchRanges.n2_max; n2++) {
+                                for (let m2 = searchRanges.m2_min; m2 <= searchRanges.m2_max; m2++) {
+                                    for (let l2 = searchRanges.l2_min; l2 <= searchRanges.l2_max; l2++) {
+                                        atoms2.forEach(atom2 => {
+                                            const x2 = n2 + atom2.x;
+                                            const y2 = m2 + atom2.y;
+                                            const z2 = l2 + atom2.z;
+                                            
+                                            const dx = (x2 - centerAtom.x) * a;
+                                            const dy = (y2 - centerAtom.y) * b;
+                                            const dz = (z2 - centerAtom.z) * c;
+                                            const distSq = dx*dx + dy*dy + dz*dz;
+                                            
+                                            if (distSq >= minDistSq && distSq <= maxDistSq) {
+                                                nearbyAtoms.push({
+                                                    x: x2, y: y2, z: z2,
+                                                    symbol: atom2.symbol,
+                                                    originalLabel: atom2.label,
+                                                    i: n2, j: m2, k: l2
+                                                });
+                                            }
+                                        });
+                                    }
+                                }
+                            }
+                            
+                            return nearbyAtoms;
+                        }
+                        
+                        function findBondsOptimized(atom1Symbol, atom2Symbol, minDist, maxDist, range, crystalData) {
+                            console.log(`\n=== findBondsOptimized started ===`);
+                            console.log(`Searching for bonds between ${atom1Symbol} and ${atom2Symbol}`);
+                            console.log(`Distance range: ${minDist} to ${maxDist} Å`);
+                            
+                            const bonds = [];
+                            const a = crystalData.cellLengths.a;
+                            const b = crystalData.cellLengths.b;
+                            const c = crystalData.cellLengths.c;
+                            const alpha = crystalData.cellAngles.alpha;
+                            const beta = crystalData.cellAngles.beta;
+                            const gamma = crystalData.cellAngles.gamma;
+                            
+                            // Debug: log cell parameters
+                            console.log('Cell parameters:', { a, b, c, alpha, beta, gamma });
+                            const minDistSq = minDist * minDist;
+                            const maxDistSq = maxDist * maxDist;
+                            
+                            console.log('Distance squared range:', { minDistSq, maxDistSq });
+                            
+                            const atoms1 = crystalData.atoms.filter(atom => atom.symbol === atom1Symbol);
+                            console.log(`Found ${atoms1.length} ${atom1Symbol} atoms:`, atoms1.map(a => `${a.label}(${a.x.toFixed(4)}, ${a.y.toFixed(4)}, ${a.z.toFixed(4)})`));
+                            postProgressMessage(`Step 1 complete: Listed ${atoms1.length} ${atom1Symbol} atoms`);
+                        
+                            console.log(`\n--- Calculating search ranges ---`);
+                            if (atom2Symbol === 'ALL') {
+                                console.log(`Looking for ALL atoms around ${atom1Symbol} atoms`);
+                            } else {
+                                console.log(`Looking for ${atom2Symbol} atoms around ${atom1Symbol} atoms`);
+                            }
+                            const searchRanges = calculateOptimalSearchRanges(atoms1, maxDist, a, b, c, alpha, beta, gamma);
+                            console.log(`Search ranges calculated:`, searchRanges);
+                            postProgressMessage(`Step 2 complete: Determined search range (n2: ${searchRanges.n2_min} to ${searchRanges.n2_max}, m2: ${searchRanges.m2_min} to ${searchRanges.m2_max}, l2: ${searchRanges.l2_min} to ${searchRanges.l2_max})`);
+                            
+                            let processedAtoms = 0;
+                            atoms1.forEach(atom1 => {
+                                processedAtoms++;
+                                console.log(`\n=== Processing atom ${processedAtoms}/${atoms1.length}: ${atom1.label} ===`);
+                                console.log(`Atom coordinates: (${atom1.x.toFixed(4)}, ${atom1.y.toFixed(4)}, ${atom1.z.toFixed(4)})`);
+                                
+                                if (atom2Symbol === 'ALL') {
+                                    console.log(`Processing ${atom1.label} - searching for ALL atoms...`);
+                                } else {
+                                    console.log(`Processing ${atom1.label} - searching for ${atom2Symbol} atoms...`);
+                                }
+                                
+                                // Direct implementation instead of calling findAtomsInRange
+                                const nearbyAtoms2 = [];
+                                
+                                // Handle "All atoms" selection for atom2
+                                let atoms2;
+                                if (atom2Symbol === 'ALL') {
+                                    atoms2 = crystalData.atoms;
+                                    console.log(`Searching for ALL atoms around ${atom1.label}`);
+                                } else {
+                                    atoms2 = crystalData.atoms.filter(atom => atom.symbol === atom2Symbol);
+                                    console.log(`Found ${atoms2.length} ${atom2Symbol} atoms in crystal data`);
+                                }
+                                
+                                if (atoms2.length > 0) {
+                                    console.log('First few atoms:', atoms2.slice(0, 3).map(a => `${a.label}(${a.x.toFixed(4)}, ${a.y.toFixed(4)}, ${a.z.toFixed(4)})`));
+                                    
+                                    // Calculate distances to all atoms
+                                    atoms2.forEach(atom2 => {
+                                        const distance = calculateDistanceOptimized(atom1, atom2, a, b, c, alpha, beta, gamma);
+                                        console.log(`Distance ${atom1.label} to ${atom2.label}: ${distance.toFixed(4)} Å`);
+                                        
+                                        if (distance >= Math.sqrt(minDistSq) && distance <= Math.sqrt(maxDistSq)) {
+                                            console.log(`BOND FOUND: ${atom1.label} - ${atom2.label} (${distance.toFixed(4)} Å)`);
+                                            nearbyAtoms2.push({
+                                                x: atom2.x,
+                                                y: atom2.y,
+                                                z: atom2.z,
+                                                symbol: atom2.symbol,
+                                                originalLabel: atom2.label,
+                                                i: 0, j: 0, k: 0
+                                            });
+                                        }
+                                    });
+                                }
+                                
+                                console.log(`Found ${nearbyAtoms2.length} nearby atoms for ${atom1.label}`);
+                                
+                                nearbyAtoms2.forEach(nearbyAtom => {
+                                    // Calculate distance using the optimized function
+                                    const distance = calculateDistanceOptimized(atom1, nearbyAtom, a, b, c, alpha, beta, gamma);
+                                    const distSq = distance * distance;
+                                    
+                                    if (distSq >= minDistSq && distSq <= maxDistSq) {
+                                        if (!(nearbyAtom.i === 0 && nearbyAtom.j === 0 && nearbyAtom.k === 0) || 
+                                            atom1.label !== nearbyAtom.originalLabel) {
+                                            
+                                            // Calculate bonding vector: atom2_coords + cell_coords - atom1_coords
+                                            const dx = (nearbyAtom.x + nearbyAtom.i) - atom1.x;
+                                            const dy = (nearbyAtom.y + nearbyAtom.j) - atom1.y;
+                                            const dz = (nearbyAtom.z + nearbyAtom.k) - atom1.z;
+
+                                            bonds.push({
+                                                atom1: atom1.label,
+                                                atom2: nearbyAtom.originalLabel,
+                                                atom1Coords: `(${atom1.x.toFixed(4)}, ${atom1.y.toFixed(4)}, ${atom1.z.toFixed(4)})`,
+                                                atom2Coords: `(${nearbyAtom.x.toFixed(4)}, ${nearbyAtom.y.toFixed(4)}, ${nearbyAtom.z.toFixed(4)})`,
+                                                distance: distance,
+                                                relativePosition: `(${nearbyAtom.i}, ${nearbyAtom.j}, ${nearbyAtom.k})`,
+                                                bondVector: `(${dx.toFixed(4)}, ${dy.toFixed(4)}, ${dz.toFixed(4)})`,
+                                                bondType: getBondTypeOptimized(distance, atom1.symbol, nearbyAtom.symbol)
+                                            });
+                                        }
+                                    }
+                                });
+                                
+                                if (processedAtoms % 10 === 0 || processedAtoms === atoms1.length) {
+                                    if (atom2Symbol === 'ALL') {
+                                        postProgressMessage(`Steps 3-5 in progress: Processing ${processedAtoms}/${atoms1.length} ${atom1Symbol} atoms vs ALL atoms... (${bonds.length} bonds found)`);
+                                    } else {
+                                        postProgressMessage(`Steps 3-5 in progress: Processing ${processedAtoms}/${atoms1.length} ${atom1Symbol} atoms... (${bonds.length} bonds found)`);
+                                    }
+                                }
+                            });
+                            
+                            postProgressMessage(`Steps 3-5 complete: Completed processing all ${atoms1.length} ${atom1Symbol} atoms`);
+                            
+                            // Step 6: Sort by distance
+                            bonds.sort((a, b) => a.distance - b.distance);
+                            postProgressMessage(`Step 6 complete: Sorted ${bonds.length} bonds by distance`);
+                            
+                            // Display result transmission message
+                            postProgressMessage(`Transmitting results: ${bonds.length} bond data...`);
+                            
+                            // Display transmission complete message
+                            setTimeout(() => {
+                                postProgressMessage(`✅ Transmission complete: Successfully processed ${bonds.length} bond data`);
+                            }, 100);
+                            
+                            return bonds;
+                        }
+                        
+                        try {
+                            const bonds = findBondsOptimized(atom1, atom2, minDistance, maxDistance, searchRange, crystalData);
+                            
+                            if (bonds && Array.isArray(bonds)) {
+                                currentBonds = bonds; // save results
+                                console.log('Search complete: start displaying results', bonds.length);
+                                
+                                // display directly (remove asynchronous)
+                                displayResults(bonds);
+                                console.log('表示完了');
+                            } else {
+                                showError('Search results are invalid.');
+                            }
+                        } catch (error) {
+                            console.error('Search error:', error);
+                            showError('An error occurred during search: ' + error.message);
+                            // Stop spinner on error
+                            const resultsDiv = document.getElementById('results');
+                            const spinner = resultsDiv.querySelector('.spinner');
+                            if (spinner) {
+                                spinner.remove();
+                            }
+                        }
+                    } catch (error) {
+                        console.error('Direct execution error:', error);
+                        showError('An error occurred during search: ' + error.message);
+                        // Stop spinner on error
+                        const resultsDiv = document.getElementById('results');
+                        const spinner = resultsDiv.querySelector('.spinner');
+                        if (spinner) {
+                            spinner.remove();
+                        }
+                    }
+                    
+                    isSearching = false;
+                    updateSearchButtons();
+                }
+            }, 100);
+        }
+
+
+
+        function postProgressMessage(message) {
+            console.log('=== postProgressMessage function started ===');
+            console.log('postProgressMessage function called:', message);
+            try {
+                // send message from Web Worker
+                if (typeof self !== 'undefined' && self.postMessage) {
+                    try {
+                        self.postMessage({ type: 'progress', message: message });
+                    } catch (error) {
+                        console.error('Web Worker: progress message sending error:', error);
+                    }
+                } else {
+                    console.log('Direct execution: display progress message:', message);
+                    try {
+                        updateProgressMessage(message);
+                        console.log('updateProgressMessage call completed');
+                    } catch (error) {
+                        console.error('updateProgressMessage call error:', error);
+                        console.log('An error occurred, but processing will continue');
+                    }
+                }
+                console.log('postProgressMessage function ended');
+            } catch (error) {
+                console.error('postProgressMessage function overall error:', error);
+                console.log('An error occurred, but processing will continue');
+            }
+            console.log('=== postProgressMessage function ended ===');
+        }
+
+        function calculateOptimalSearchRanges(atoms1, maxDist, a, b, c, alpha = 90, beta = 90, gamma = 90) {
+            // set initial values (to find min/max for all atoms)
+            let n2_min = Infinity, n2_max = -Infinity;
+            let m2_min = Infinity, m2_max = -Infinity;
+            let l2_min = Infinity, l2_max = -Infinity;
+            
+            // For safety, use a more conservative search range that accounts for non-orthogonal lattices
+            // Add a safety factor to ensure we don't miss any bonds
+            const safetyFactor = 2.0; // Increased safety factor
+            const adjustedMaxDist = maxDist * safetyFactor;
+            
+            console.log('Search range calculation:', {
+                maxDist,
+                adjustedMaxDist,
+                a, b, c,
+                atomCount: atoms1.length
+            });
+            
+            atoms1.forEach((atom1, index) => {
+                const i1 = atom1.x; // internal coordinates of atom1
+                const j1 = atom1.y;
+                const k1 = atom1.z;
+                
+                // Use original cell dimensions for search range calculation
+                // This ensures we don't miss any bonds due to overly restrictive search ranges
+                const n2_x = Math.floor((adjustedMaxDist + i1 * a) / a);
+                const n2_y = Math.ceil((-adjustedMaxDist + i1 * a) / a);
+                
+                const m2_x = Math.floor((adjustedMaxDist + j1 * b) / b);
+                const m2_y = Math.ceil((-adjustedMaxDist + j1 * b) / b);
+                
+                const l2_x = Math.floor((adjustedMaxDist + k1 * c) / c);
+                const l2_y = Math.ceil((-adjustedMaxDist + k1 * c) / c);
+                
+                console.log(`Atom ${index + 1} (${atom1.label}):`, {
+                    coords: `(${i1.toFixed(4)}, ${j1.toFixed(4)}, ${k1.toFixed(4)})`,
+                    n2_range: `${n2_y} to ${n2_x}`,
+                    m2_range: `${m2_y} to ${m2_x}`,
+                    l2_range: `${l2_y} to ${l2_x}`
+                });
+                
+                // update min/max for all atoms
+                n2_min = Math.min(n2_min, n2_y);
+                n2_max = Math.max(n2_max, n2_x);
+                m2_min = Math.min(m2_min, m2_y);
+                m2_max = Math.max(m2_max, m2_x);
+                l2_min = Math.min(l2_min, l2_y);
+                l2_max = Math.max(l2_max, l2_x);
+            });
+            
+            const result = {
+                n2_min: n2_min,
+                n2_max: n2_max,
+                m2_min: m2_min,
+                m2_max: m2_max,
+                l2_min: l2_min,
+                l2_max: l2_max
+            };
+            
+            console.log('Final search ranges:', result);
+            return result;
+        }
+
+        function findAtomsInRange(centerAtom, targetSymbol, searchRanges, crystalData, a, b, c, alpha, beta, gamma, minDistSq, maxDistSq) {
+            console.log('=== findAtomsInRange FUNCTION CALLED ===');
+            console.log(`Parameters: ${targetSymbol} around ${centerAtom.label}`);
+            console.log('Search ranges:', searchRanges);
+            
+            // For now, just return empty array
+            return [];
+        }
+
+        // Calculate metric tensor components for non-orthogonal lattices
+        function calculateMetricTensor(a, b, c, alpha, beta, gamma) {
+            // Ensure angles are valid, default to 90 degrees if undefined
+            const safeAlpha = (alpha && !isNaN(alpha)) ? alpha : 90;
+            const safeBeta = (beta && !isNaN(beta)) ? beta : 90;
+            const safeGamma = (gamma && !isNaN(gamma)) ? gamma : 90;
+            
+            // Convert angles from degrees to radians
+            const alphaRad = safeAlpha * Math.PI / 180;
+            const betaRad = safeBeta * Math.PI / 180;
+            const gammaRad = safeGamma * Math.PI / 180;
+            
+            // Calculate cosines
+            const cosAlpha = Math.cos(alphaRad);
+            const cosBeta = Math.cos(betaRad);
+            const cosGamma = Math.cos(gammaRad);
+            
+            // Metric tensor components (G matrix)
+            const g11 = a * a;
+            const g22 = b * b;
+            const g33 = c * c;
+            const g12 = a * b * cosGamma;
+            const g13 = a * c * cosBeta;
+            const g23 = b * c * cosAlpha;
+            
+            // For debugging: log metric tensor for orthogonal case
+            if (Math.abs(cosAlpha) < 1e-10 && Math.abs(cosBeta) < 1e-10 && Math.abs(cosGamma) < 1e-10) {
+                console.log('Orthogonal lattice detected, metric tensor simplified');
+            }
+            
+            return { g11, g22, g33, g12, g13, g23 };
+        }
+
+        function calculateDistanceOptimized(atom1, atom2, a, b, c, alpha, beta, gamma) {
+            // Calculate distance considering lattice angles (metric tensor approach)
+            const dx = atom2.x - atom1.x;
+            const dy = atom2.y - atom1.y;
+            const dz = atom2.z - atom1.z;
+            
+            // Get metric tensor components
+            const metric = calculateMetricTensor(a, b, c, alpha, beta, gamma);
+            
+            // Calculate distance using metric tensor: d² = dx²g11 + dy²g22 + dz²g33 + 2dxdyg12 + 2dxdzg13 + 2dydzg23
+            const distanceSquared = dx * dx * metric.g11 + 
+                                   dy * dy * metric.g22 + 
+                                   dz * dz * metric.g33 + 
+                                   2 * dx * dy * metric.g12 + 
+                                   2 * dx * dz * metric.g13 + 
+                                   2 * dy * dz * metric.g23;
+            
+            const distance = Math.sqrt(distanceSquared);
+            
+            // Debug: log distance calculation for first few bonds
+            if (Math.random() < 0.01) { // Log only 1% of calculations to avoid spam
+                console.log('Distance calculation:', {
+                    atom1: atom1.label,
+                    atom2: atom2.label,
+                    dx, dy, dz,
+                    metric,
+                    distanceSquared,
+                    distance
+                });
+            }
+            
+            return distance;
+        }
+
+
+
+        function getBondTypeOptimized(distance, symbol1, symbol2) {
+            
+            // improved fallback processing
+            function getEstimatedRadius(symbol) {
+                if (covalentRadii[symbol]) {
+                    return covalentRadii[symbol];
+                }
+                
+                // estimate atomic number from element symbol
+                const elementSymbols = ['H', 'He', 'Li', 'Be', 'B', 'C', 'N', 'O', 'F', 'Ne', 'Na', 'Mg', 'Al', 'Si', 'P', 'S', 'Cl', 'Ar', 'K', 'Ca', 'Sc', 'Ti', 'V', 'Cr', 'Mn', 'Fe', 'Co', 'Ni', 'Cu', 'Zn', 'Ga', 'Ge', 'As', 'Se', 'Br', 'Kr', 'Rb', 'Sr', 'Y', 'Zr', 'Nb', 'Mo', 'Tc', 'Ru', 'Rh', 'Pd', 'Ag', 'Cd', 'In', 'Sn', 'Sb', 'Te', 'I', 'Xe', 'Cs', 'Ba', 'La', 'Ce', 'Pr', 'Nd', 'Pm', 'Sm', 'Eu', 'Gd', 'Tb', 'Dy', 'Ho', 'Er', 'Tm', 'Yb', 'Lu', 'Hf', 'Ta', 'W', 'Re', 'Os', 'Ir', 'Pt', 'Au', 'Hg', 'Tl', 'Pb', 'Bi', 'Po', 'At', 'Rn'];
+                const atomicNumber = elementSymbols.indexOf(symbol) + 1;
+                
+                if (atomicNumber > 0) {
+                    // estimated radius based on atomic number (simplified version)
+                    if (atomicNumber <= 10) {
+                        return 0.5 + (atomicNumber * 0.1); // 1st period: 0.6-1.5 Å
+                    } else if (atomicNumber <= 18) {
+                        return 1.0 + ((atomicNumber - 10) * 0.08); // 2nd period: 1.08-1.64 Å
+                    } else if (atomicNumber <= 36) {
+                        return 1.5 + ((atomicNumber - 18) * 0.03); // 3rd-4th period: 1.53-2.04 Å
+                    } else {
+                        return 2.0 + ((atomicNumber - 36) * 0.02); // 5th period and beyond: 2.02+ Å
+                    }
+                }
+                
+                // final fallback
+                return 1.5;
+            }
+            
+            const r1 = getEstimatedRadius(symbol1);
+            const r2 = getEstimatedRadius(symbol2);
+            const sumRadii = r1 + r2;
+            
+            // warning if default value is used
+            if (!covalentRadii[symbol1] || !covalentRadii[symbol2]) {
+                const unknownElements = [];
+                if (!covalentRadii[symbol1]) unknownElements.push(symbol1);
+                if (!covalentRadii[symbol2]) unknownElements.push(symbol2);
+                
+                console.warn(`Warning: Covalent radius data for elements ${unknownElements.join(', ')} does not exist. Using estimated values.`);
+                
+                // display warning only once
+                if (!window.bondWarningShown) {
+                    showInfo(`⚠️ Warning: Covalent radius data for elements ${unknownElements.join(', ')} does not exist. Using estimated values. The reliability of the results may be reduced.`);
+                    window.bondWarningShown = true;
+                }
+            }
+            
+            if (distance <= sumRadii * 1.2) {
+                return 'Strong_Bond';
+            } else if (distance <= sumRadii * 1.5) {
+                return 'Weak_Bond';
+            } else {
+                return 'Non_Bond';
+            }
+        }
+
+
+
+        function displayResults(bonds) {
+            console.log('displayResults started:', bonds.length);
+            if (!bonds || !Array.isArray(bonds)) {
+                showError('Invalid result data.');
+                return;
+            }
+            
+            // Stop spinner first
+            const resultsDiv = document.getElementById('results');
+            const spinner = resultsDiv.querySelector('.spinner');
+            if (spinner) {
+                spinner.remove();
+            }
+            
+            // prepare result display area (display results in progress message area)
+            let bondList = document.getElementById('bondList');
+            const downloadBtn = document.getElementById('downloadBtn');
+            
+            console.log('resultsDiv:', resultsDiv);
+            console.log('bondList:', bondList);
+            console.log('downloadBtn:', downloadBtn);
+            
+            if (!resultsDiv) {
+                showError('Result display area not found.');
+                return;
+            }
+            
+            if (!bondList) {
+                // create bondList element
+                const newBondList = document.createElement('div');
+                newBondList.id = 'bondList';
+                newBondList.className = 'bond-list';
+                resultsDiv.appendChild(newBondList);
+                bondList = newBondList;
+                console.log('bondList recreated');
+            }
+            
+            // if downloadBtn does not exist, recreate it
+            let finalDownloadBtn = downloadBtn;
+            if (!finalDownloadBtn) {
+                const newDownloadBtn = document.createElement('button');
+                newDownloadBtn.id = 'downloadBtn';
+                newDownloadBtn.className = 'download-btn';
+                newDownloadBtn.onclick = downloadResults;
+                newDownloadBtn.innerHTML = '💾 Download Results (CSV)';
+                resultsDiv.appendChild(newDownloadBtn);
+                finalDownloadBtn = newDownloadBtn;
+                console.log('downloadBtn recreated');
+            }
+            
+            // Clear except header
+            bondList.innerHTML = `
+                <div class="bond-item bond-header">
+                    <div>Element 1<br><small>Coordinates</small></div>
+                    <div>Element 2<br><small>Coordinates</small></div>
+                    <div>Distance<br><small>(Å)</small></div>
+                    <div>Cell of Element 2<br><small>(i,j,k)</small></div>
+                    <div>Bond Vector</div>
+                    <div>Bond Type</div>
+                </div>
+            `;
+            
+            if (bonds.length === 0) {
+                bondList.innerHTML += `
+                    <div class="bond-item">
+                        <div colspan="5" style="text-align: center; color: #666; padding: 40px;">
+                            No bonds found matching the specified conditions.
+                        </div>
+                    </div>
+                `;
+                if (finalDownloadBtn) {
+                    finalDownloadBtn.style.display = 'none';
+                }
+            } else {
+                // display directly (remove batch processing for simplicity)
+                bonds.forEach((bond, index) => {
+                    bondList.innerHTML += `
+                        <div class="bond-item">
+                            <div>${bond.atom1}<br><small style="color: #666;">${bond.atom1Coords}</small></div>
+                            <div>${bond.atom2}<br><small style="color: #666;">${bond.atom2Coords}</small></div>
+                            <div class="distance">${bond.distance.toFixed(3)}</div>
+                            <div><small>${bond.relativePosition}</small></div>
+                            <div><small>${bond.bondVector}</small></div>
+                            <div><small>${bond.bondType}</small></div>
+                        </div>
+                    `;
+                });
+                
+                if (finalDownloadBtn) {
+                    finalDownloadBtn.style.display = 'block';
+                }
+            }
+            
+            console.log('display processing completed');
+            
+            // Add result display completion message
+            postProgressMessage(`📊 Result display complete: Displayed ${bonds.length} bonds`);
+            
+            // Final completion message
+            setTimeout(() => {
+                postProgressMessage(`🎉 Process complete: All processing completed successfully`);
+            }, 200);
+            
+            // display resultsDiv
+            const finalResultsDiv = document.getElementById('results');
+            if (finalResultsDiv) {
+                finalResultsDiv.style.display = 'block';
+            }
+            
+            console.log('before showInfo');
+            showInfo(`${bonds.length} bonds found.`);
+            console.log('after showInfo');
+        }
+
+        function showLoading() {
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.style.display = 'block';
+            resultsDiv.innerHTML = `
+                <h3>🔍 Search in progress...</h3>
+                <div class="loading">
+                    <div class="spinner"></div>
+                    <p>Searching for bonds...</p>
+                    <small style="color: #666; margin-top: 10px; display: block;">
+                        ⏹️ Stop: Can be stopped with "Stop Search" button or Esc key
+                    </small>
+                </div>
+            `;
+        }
+
+
+
+        function showError(message) {
+            const errorDiv = document.createElement('div');
+            errorDiv.className = 'error';
+            errorDiv.innerHTML = `<strong>Error:</strong> ${message}`;
+            
+            const mainContent = document.querySelector('.main-content');
+            mainContent.insertBefore(errorDiv, mainContent.firstChild);
+            
+            setTimeout(() => {
+                errorDiv.remove();
+            }, 5000);
+        }
+
+        function showInfo(message) {
+            const infoDiv = document.createElement('div');
+            infoDiv.className = 'info';
+            infoDiv.innerHTML = `<strong>Info:</strong> ${message}`;
+            
+            const mainContent = document.querySelector('.main-content');
+            mainContent.insertBefore(infoDiv, mainContent.firstChild);
+            
+            setTimeout(() => {
+                infoDiv.remove();
+            }, 5000);
+        }
+
+        // function for file parsing log
+        function addParseLog(message, type = 'info') {
+            const logContainer = document.getElementById('parseLogMessages');
+            const fileParseLog = document.getElementById('fileParseLog');
+            
+            if (!logContainer) {
+                console.error('parseLogMessages element not found');
+                return;
+            }
+            
+            // Display log area
+            fileParseLog.style.display = 'block';
+            
+            const logDiv = document.createElement('div');
+            logDiv.className = 'progress-message';
+            
+            // set icon according to type
+            let icon = 'ℹ️';
+            if (type === 'success') icon = '✅';
+            else if (type === 'warning') icon = '⚠️';
+            else if (type === 'error') icon = '❌';
+            
+            logDiv.innerHTML = `${icon} ${message}`;
+            
+            logContainer.appendChild(logDiv);
+            
+            // scroll to bottom
+            logContainer.scrollTop = logContainer.scrollHeight;
+            
+            console.log(`[ParseLog] ${message}`);
+        }
+
+        // function to clear file parsing log
+        function clearParseLog() {
+            const logContainer = document.getElementById('parseLogMessages');
+            if (logContainer) {
+                logContainer.innerHTML = '';
+            }
+            const fileParseLog = document.getElementById('fileParseLog');
+            if (fileParseLog) {
+                fileParseLog.style.display = 'none';
+            }
+        }
+
+        function stopSearch() {
+            if (currentWorker) {
+                currentWorker.terminate();
+                currentWorker = null;
+            }
+            
+            isSearching = false;
+            updateSearchButtons();
+            
+            // Stop spinner first
+            const resultsDiv = document.getElementById('results');
+            const spinner = resultsDiv.querySelector('.spinner');
+            if (spinner) {
+                spinner.remove();
+            }
+            
+            // Display stop message
+            resultsDiv.style.display = 'block';
+            resultsDiv.innerHTML = `
+                <h3>⏹️ Search stopped</h3>
+                <div class="info" style="margin: 20px 0;">
+                    <strong>Info:</strong> Search was manually stopped. Please adjust conditions and re-run as needed.
+                </div>
+            `;
+            
+            showInfo('Search stopped.');
+        }
+
+        function updateSearchButtons() {
+            const searchBtn = document.getElementById('searchBtn');
+            const stopBtn = document.getElementById('stopBtn');
+            
+            if (isSearching) {
+                searchBtn.style.display = 'none';
+                stopBtn.style.display = 'block';
+            } else {
+                searchBtn.style.display = 'block';
+                stopBtn.style.display = 'none';
+            }
+        }
+
+        function updateProgressMessage(message) {
+            try {
+                const resultsDiv = document.getElementById('results');
+                if (!resultsDiv) {
+                    console.error('resultsDiv not found');
+                    return;
+                }
+                
+                if (resultsDiv.style.display === 'none') {
+                    resultsDiv.style.display = 'block';
+                }
+                
+                // add progress message
+                const progressDiv = document.getElementById('progressMessages');
+                if (!progressDiv) {
+                    // Create progress display area for first time
+                    resultsDiv.innerHTML = `
+                        <h3>🔍 Search in progress...</h3>
+                        <div class="loading">
+                            <div class="spinner"></div>
+                            <div id="progressMessages" style="text-align: left; margin-top: 20px;">
+                                <div class="progress-message">${message}</div>
+                            </div>
+                            <small style="color: #666; margin-top: 10px; display: block;">
+                                ⏹️ Stop: Can be stopped with "Stop Search" button or Esc key
+                            </small>
+                        </div>
+                    `;
+                } else {
+                    // add progress message to existing one
+                    const messageDiv = document.createElement('div');
+                    messageDiv.className = 'progress-message';
+                    messageDiv.textContent = message;
+                    progressDiv.appendChild(messageDiv);
+                    
+                    // scroll to bottom
+                    progressDiv.scrollTop = progressDiv.scrollHeight;
+                }
+                
+                // Remove spinner after "transmission complete" message
+                if (message.includes('transmission complete') || message.includes('process complete')) {
+                    setTimeout(() => {
+                        const spinner = resultsDiv.querySelector('.spinner');
+                        if (spinner) {
+                            spinner.remove();
+                        }
+                    }, 1000); // Remove spinner after 1 second
+                }
+            } catch (error) {
+                console.error('error in updateProgressMessage:', error);
+            }
+        }
+
+
+
+        // function to download results
+        function downloadResults() {
+            if (!currentBonds || currentBonds.length === 0) {
+                showError('No results to download.');
+                return;
+            }
+
+            // CSV header (English)
+            let csvContent = 'Atom1,Atom1_Coordinates,Atom2,Atom2_Coordinates,Distance_A,Relative_Position,Bond_Vector,Bond_Type\n';
+            
+            // add data rows
+            currentBonds.forEach(bond => {
+                const row = [
+                    bond.atom1,
+                    bond.atom1Coords,
+                    bond.atom2,
+                    bond.atom2Coords,
+                    bond.distance.toFixed(3),
+                    bond.relativePosition,
+                    bond.bondVector,
+                    bond.bondType
+                ].map(field => `"${field}"`).join(',');
+                csvContent += row + '\n';
+            });
+
+            // Generate filename (including current date and time)
+            const now = new Date();
+            const timestamp = now.getFullYear() + 
+                            String(now.getMonth() + 1).padStart(2, '0') + 
+                            String(now.getDate()).padStart(2, '0') + '_' +
+                            String(now.getHours()).padStart(2, '0') + 
+                            String(now.getMinutes()).padStart(2, '0');
+            
+            const filename = `bonding_results_${timestamp}.csv`;
+
+            // Download processing
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            
+            if (link.download !== undefined) {
+                const url = URL.createObjectURL(blob);
+                link.setAttribute('href', url);
+                link.setAttribute('download', filename);
+                link.style.visibility = 'hidden';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                URL.revokeObjectURL(url);
+                
+                showInfo(`Results downloaded as ${filename}.`);
+            } else {
+                showError('Your browser does not support download functionality.');
+            }
+        }
+
+        // function to get symmetry operations from embedded space group data
+        function getSymmetryOperationsFromEmbeddedData(spaceGroupNumber) {
+            if (typeof embeddedSpaceGroupData !== 'undefined' && embeddedSpaceGroupData[spaceGroupNumber]) {
+                return embeddedSpaceGroupData[spaceGroupNumber].symmetry_operations;
+            }
+            return null;
+        }
+
+        // function to get symmetry operations from space group number (using embedded data only)
+        async function getSymmetryOperationsBySpaceGroupNumber(spaceGroupNumber) {
+            console.log(`Getting symmetry operations from space group number ${spaceGroupNumber}...`);
+            
+            // Check embedded data
+            const embeddedOps = getSymmetryOperationsFromEmbeddedData(spaceGroupNumber);
+            if (embeddedOps && embeddedOps.length > 0) {
+                console.log(`Retrieved symmetry operations for space group ${spaceGroupNumber} from embedded data: ${embeddedOps.length} items`);
+                return embeddedOps;
+            }
+            
+            // If not in embedded data
+            throw new Error(`Symmetry operation data for space group ${spaceGroupNumber} is not included in embedded data`);
+        }
+
+        // Function to display version information
+        function showVersionInfo() {
+            const versionInfo = `${APP_NAME} v${APP_VERSION}`;
+            console.log(versionInfo);
+            showInfo(versionInfo);
+        }
+
+        // Function to get version information
+        function getVersionInfo() {
+            return {
+                name: APP_NAME,
+                version: APP_VERSION,
+                description: APP_DESCRIPTION
+            };
+        }
+    </script>
+    
+    <!-- embedded space group data -->
+    <script src="./embedded_spacegroups.js"></script>
+</body>
+</html> 
+</html> 
