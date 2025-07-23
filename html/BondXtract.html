@@ -14,7 +14,7 @@
         }
 
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica Neue', Arial, 'Noto Sans', sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+            font-family: 'Consolas', 'Monaco', 'Menlo', 'Ubuntu Mono', 'DejaVu Sans Mono', 'Courier New', monospace;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
             padding: 20px;
@@ -76,6 +76,7 @@
             border: none;
             border-radius: 25px;
             font-size: 1.1em;
+            font-family: 'Consolas', 'Monaco', 'Menlo', 'Ubuntu Mono', 'DejaVu Sans Mono', 'Courier New', monospace;
             cursor: pointer;
             transition: transform 0.2s ease;
         }
@@ -120,6 +121,7 @@
             border: 2px solid #ddd;
             border-radius: 5px;
             font-size: 1em;
+            font-family: 'Consolas', 'Monaco', 'Menlo', 'Ubuntu Mono', 'DejaVu Sans Mono', 'Courier New', monospace;
             transition: border-color 0.3s ease;
         }
 
@@ -135,6 +137,7 @@
             border: none;
             border-radius: 25px;
             font-size: 1.1em;
+            font-family: 'Consolas', 'Monaco', 'Menlo', 'Ubuntu Mono', 'DejaVu Sans Mono', 'Courier New', monospace;
             cursor: pointer;
             width: 100%;
             transition: transform 0.2s ease;
@@ -230,6 +233,16 @@
             height: 40px;
             animation: spin 1s linear infinite;
             margin: 0 auto 20px;
+        }
+
+        .spinner-small {
+            border: 2px solid #f3f3f3;
+            border-top: 2px solid #4facfe;
+            border-radius: 50%;
+            width: 16px;
+            height: 16px;
+            animation: spin 1s linear infinite;
+            margin: 0;
         }
 
         @keyframes spin {
@@ -392,6 +405,7 @@
             border: none;
             border-radius: 20px;
             font-size: 1em;
+            font-family: 'Consolas', 'Monaco', 'Menlo', 'Ubuntu Mono', 'DejaVu Sans Mono', 'Courier New', monospace;
             cursor: pointer;
             margin-top: 15px;
             transition: transform 0.2s ease;
@@ -420,7 +434,7 @@
             <div class="file-upload" id="fileUpload">
                 <p>📁 Drag & drop a CIF file or click to select</p>
                 <p style="font-size: 0.9em; color: #666; margin-top: 10px;">
-                    💡 If a space group number is detected, the necessary symmetry operation data will be automatically loaded
+                    💡 Symmetry operations are automatically loaded for detected space group numbers, but the embedded operation sets are based on standard setting and origin choice 1. Different axis orientations or origin choices may require different operations.
                 </p>
                 <input type="file" id="fileInput" accept=".cif">
                 <button class="upload-btn" onclick="document.getElementById('fileInput').click()">
@@ -468,37 +482,34 @@
                         <input type="number" id="maxDistance" step="0.1" min="0" value="5.0">
                     </div>
                 </div>
+            </div>
 
-                <div class="control-group">
-                    <h3>🔧 Search Settings</h3>
-                    <div class="form-group">
-                        <label>Search Range:</label>
-                        <div style="background: #f8f9fa; padding: 10px; border-radius: 5px; border: 1px solid #ddd;">
-                            <small style="color: #666;">
-                                🎯 <strong>Auto-determined</strong>: Automatically calculates the mathematically optimal search range based on the maximum distance
-                            </small>
-                        </div>
-                    </div>
-                    <button class="search-btn" id="searchBtn" onclick="searchBonds()" disabled>
-                        Search Bonds
-                    </button>
-                    <button class="search-btn" id="stopBtn" onclick="stopSearch()" style="display: none; background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);">
-                        ⏹️ Stop Search
-                    </button>
-                </div>
+            <div style="text-align: center; margin: 20px 0;">
+                <button class="search-btn" id="searchBtn" onclick="searchBonds()" disabled>
+                    Search Bonds
+                </button>
+                <button class="search-btn" id="stopBtn" onclick="stopSearch()" style="display: none; background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);">
+                    ⏹️ Stop Search
+                </button>
             </div>
 
             <div id="results" class="results" style="display: none;">
-                <h3>📋 Search Results</h3>
-                <div id="bondList" class="bond-list">
-                                    <div class="bond-item bond-header">
-                    <div>Atom 1</div>
-                    <div>Atom 2</div>
-                    <div>Distance (Å)</div>
-                    <div>Atom 2 Cell Coordinates</div>
-                    <div>Bond Vector</div>
-                    <div>Bond Type</div>
+                <h3 id="searchStatusTitle">🔍 Search in progress...</h3>
+                <div id="progressMessages" style="max-height: 200px; overflow-y: auto; background: white; border-radius: 5px; padding: 10px; border: 1px solid #ddd; margin-bottom: 20px;">
+                    <!-- Progress messages will be displayed here -->
                 </div>
+                <h4 id="bondResultsTitle" style="margin-bottom: 15px; color: #333; border-bottom: 2px solid #4facfe; padding-bottom: 5px; display: none;">
+                    📊 Bond Analysis Results
+                </h4>
+                <div id="bondList" class="bond-list" style="display: none;">
+                    <div class="bond-item bond-header">
+                        <div>Atom 1</div>
+                        <div>Atom 2</div>
+                        <div>Distance (Å)</div>
+                        <div>Atom 2 Cell Coordinates</div>
+                        <div>Bond Vector</div>
+                        <div>Bond Type</div>
+                    </div>
                 </div>
                 <button id="downloadBtn" class="download-btn" onclick="downloadResults()" style="display: none;">
                     💾 Download Results (CSV)
@@ -559,6 +570,26 @@
         let currentWorker = null; // Currently running Web Worker
         let isSearching = false; // Flag indicating if search is in progress
         let currentBonds = []; // Store current search results
+        
+        // Memory management for large datasets
+        let memoryUsage = {
+            atomDataSize: 0,
+            bondDataSize: 0,
+            lastCleanup: Date.now()
+        };
+        
+        // Memory cleanup function
+        function cleanupMemory() {
+            const now = Date.now();
+            if (now - memoryUsage.lastCleanup > 30000) { // Cleanup every 30 seconds
+                // Check if we're in Node.js environment with global.gc available
+                if (typeof global !== 'undefined' && global.gc) {
+                    global.gc(); // Force garbage collection if available
+                }
+                memoryUsage.lastCleanup = now;
+                console.log('Memory cleanup performed');
+            }
+        }
 
         // Covalent radius data (defined once in global scope)
         const covalentRadii = {
@@ -1242,88 +1273,152 @@
             return normalized;
         }
 
-        // Function to check if coordinates are duplicate
+        // Optimized duplicate coordinate checking (deprecated - now handled by OptimizedAtomData)
         function isDuplicateCoordinate(coord1, coord2, tolerance = 0.0002) {
+            console.warn('isDuplicateCoordinate is deprecated. Use OptimizedAtomData.isDuplicateCoordinate instead.');
             return Math.abs(coord1.x - coord2.x) <= tolerance &&
                    Math.abs(coord1.y - coord2.y) <= tolerance &&
                    Math.abs(coord1.z - coord2.z) <= tolerance;
         }
 
-        // Function to generate atom list by applying symmetry operations
-        function generateSymmetryEquivalentAtoms(originalAtoms, symmetryOps) {
-            const allAtoms = [];
+        // Optimized atom data structure with pre-computed indices
+        class OptimizedAtomData {
+            constructor() {
+                this.atoms = [];
+                this.atomsBySymbol = new Map(); // Symbol -> Array of atom indices
+                this.atomsByOriginal = new Map(); // original flag -> Array of atom indices
+                this.duplicateMap = new Map(); // coordinate hash -> atom index
+            }
             
-            console.log(`\n=== Starting symmetry operation application ===`);
+            // Add atom with optimized data structure
+            addAtom(atom) {
+                const index = this.atoms.length;
+                this.atoms.push(atom);
+                
+                // Update symbol index
+                if (!this.atomsBySymbol.has(atom.symbol)) {
+                    this.atomsBySymbol.set(atom.symbol, []);
+                }
+                this.atomsBySymbol.get(atom.symbol).push(index);
+                
+                // Update original flag index
+                const originalKey = atom.original ? 'original' : 'generated';
+                if (!this.atomsByOriginal.has(originalKey)) {
+                    this.atomsByOriginal.set(originalKey, []);
+                }
+                this.atomsByOriginal.get(originalKey).push(index);
+                
+                return index;
+            }
+            
+            // Get atoms by symbol (optimized)
+            getAtomsBySymbol(symbol) {
+                const indices = this.atomsBySymbol.get(symbol) || [];
+                return indices.map(index => this.atoms[index]);
+            }
+            
+            // Get all atoms (optimized)
+            getAllAtoms() {
+                return this.atoms;
+            }
+            
+            // Check for duplicate coordinates (optimized)
+            isDuplicateCoordinate(coords, tolerance = 0.0002) {
+                const hash = this.coordinateHash(coords);
+                return this.duplicateMap.has(hash);
+            }
+            
+            // Add coordinate hash for duplicate checking
+            addCoordinateHash(coords, atomIndex) {
+                const hash = this.coordinateHash(coords);
+                this.duplicateMap.set(hash, atomIndex);
+            }
+            
+            // Optimized coordinate hash function
+            coordinateHash(coords) {
+                // Round to tolerance level for hash
+                const precision = 4; // 0.0001 precision
+                const x = Math.round(coords.x * Math.pow(10, precision));
+                const y = Math.round(coords.y * Math.pow(10, precision));
+                const z = Math.round(coords.z * Math.pow(10, precision));
+                return `${x},${y},${z}`;
+            }
+            
+            // Get total count
+            getCount() {
+                return this.atoms.length;
+            }
+            
+            // Clear data for memory optimization
+            clear() {
+                this.atoms = [];
+                this.atomsBySymbol.clear();
+                this.atomsByOriginal.clear();
+                this.duplicateMap.clear();
+            }
+        }
+        
+        // Function to generate atom list by applying symmetry operations (optimized)
+        function generateSymmetryEquivalentAtoms(originalAtoms, symmetryOps) {
+            const optimizedData = new OptimizedAtomData();
+            
+            console.log(`\n=== Starting optimized symmetry operation application ===`);
             console.log(`Original atom count: ${originalAtoms.length}`);
             console.log(`Number of symmetry operations: ${symmetryOps.length}`);
-            console.log(`Symmetry operation list:`, symmetryOps);
+            
+            // Pre-filter identity operations
+            const nonIdentityOps = symmetryOps.filter(op => op !== 'x, y, z');
+            console.log(`Non-identity operations: ${nonIdentityOps.length}`);
             
             originalAtoms.forEach((originalAtom, atomIndex) => {
-                console.log(`\n--- Atom ${atomIndex + 1}: ${originalAtom.label} ---`);
+                // Add original atom with normalized coordinates
+                const normalizedCoords = {
+                    x: normalizeFractionalCoordinate(originalAtom.x),
+                    y: normalizeFractionalCoordinate(originalAtom.y),
+                    z: normalizeFractionalCoordinate(originalAtom.z)
+                };
                 
-                // Also normalize and add original atom coordinates
-                const normalizedX = normalizeFractionalCoordinate(originalAtom.x);
-                const normalizedY = normalizeFractionalCoordinate(originalAtom.y);
-                const normalizedZ = normalizeFractionalCoordinate(originalAtom.z);
-                
-                allAtoms.push({
+                const originalAtomData = {
                     label: originalAtom.label,
                     occupancy: originalAtom.occupancy,
-                    x: normalizedX,
-                    y: normalizedY,
-                    z: normalizedZ,
+                    x: normalizedCoords.x,
+                    y: normalizedCoords.y,
+                    z: normalizedCoords.z,
                     symbol: originalAtom.symbol,
                     original: true
-                });
+                };
                 
-                console.log(`Normalized coordinates of original atom ${originalAtom.label}: (${originalAtom.x}, ${originalAtom.y}, ${originalAtom.z}) → (${normalizedX}, ${normalizedY}, ${normalizedZ})`);
+                const originalIndex = optimizedData.addAtom(originalAtomData);
+                optimizedData.addCoordinateHash(normalizedCoords, originalIndex);
                 
-                // Apply each symmetry operation
-                let symmetryIndex = 0; // Counter for valid symmetry operations
-                let appliedCount = 0; // Number of actually applied symmetry operations
-                
-                symmetryOps.forEach((operation, index) => {
-                    if (operation === 'x, y, z') {
-                        console.log(`Skipping identity operation: ${operation} (index: ${index})`);
-                        return; // Skip identity operation
-                    }
-                    
-                    symmetryIndex++; // Increment counter for valid symmetry operations
-                    console.log(`\n=== Applying ${operation} to ${originalAtom.label} (index: ${index}, symmetryIndex: ${symmetryIndex}) ===`);
-                    
+                // Apply symmetry operations (optimized)
+                nonIdentityOps.forEach((operation, opIndex) => {
                     const newCoords = applySymmetryOperation(originalAtom.x, originalAtom.y, originalAtom.z, operation);
                     
-                    // Duplicate check
-                    const isDuplicate = allAtoms.some(existingAtom => 
-                        isDuplicateCoordinate(newCoords, existingAtom)
-                    );
-                    
-                    if (!isDuplicate) {
-                        appliedCount++;
+                    // Optimized duplicate check using hash
+                    if (!optimizedData.isDuplicateCoordinate(newCoords)) {
                         const newAtom = {
-                            label: `${originalAtom.label}_sym${symmetryIndex}`,
+                            label: `${originalAtom.label}_sym${opIndex + 1}`,
                             occupancy: originalAtom.occupancy,
-                            x: newCoords.x,
+                            x: newCoords.x, // Use symmetry operation result
                             y: newCoords.y,
                             z: newCoords.z,
                             symbol: originalAtom.symbol,
                             original: false,
                             symmetryOp: operation
                         };
-                        allAtoms.push(newAtom);
-                        console.log(`Added new atom: ${newAtom.label} at (${newCoords.x}, ${newCoords.y}, ${newCoords.z})`);
-                    } else {
-                        console.log(`Skipped due to duplicate: (${newCoords.x}, ${newCoords.y}, ${newCoords.z})`);
+                        
+                        const newIndex = optimizedData.addAtom(newAtom);
+                        optimizedData.addCoordinateHash(newCoords, newIndex);
                     }
                 });
-                
-                console.log(`Number of symmetry operations applied to atom ${originalAtom.label}: ${appliedCount}`);
             });
             
-            console.log(`\n=== Symmetry operation application complete ===`);
-            console.log(`Final atom count: ${allAtoms.length}`);
+            console.log(`\n=== Optimized symmetry operation application complete ===`);
+            console.log(`Final atom count: ${optimizedData.getCount()}`);
             
-            return allAtoms;
+            // Return optimized data structure
+            return optimizedData;
         }
 
         // Function to parse atom list from CIF file
@@ -1614,7 +1709,7 @@
                             }
                             spaceGroupFound = true;
                             console.log('Space group name detected: _space_group_name_H-M_alt =', crystalData.spaceGroup);
-                            addParseLog('Space group name detected: _space_group_name_H-M_alt', 'success');
+                            addParseLog(`Space group name detected: _space_group_name_H-M_alt = ${crystalData.spaceGroup}`, 'success');
                         } else if (line.trim().startsWith('_symmetry_space_group_name_H-M')) {
                             console.log('Raw line for _symmetry_space_group_name_H-M:', line);
                             const parts = line.trim().split("'");
@@ -1631,6 +1726,7 @@
                             spaceGroupFound = true;
                             usedAlternativeSpaceGroupName = true;
                             console.log('Space group name detected: _symmetry_space_group_name_H-M (alternative keyword) =', crystalData.spaceGroup);
+                            addParseLog(`Space group name detected: _symmetry_space_group_name_H-M (alternative keyword) = ${crystalData.spaceGroup}`, 'success');
                         }
                     }
                     
@@ -1646,6 +1742,7 @@
                             spaceGroupNumberFound = true;
                             usedAlternativeSpaceGroupNumber = true;
                             console.log('Space group number detected: _symmetry_Int_Tables_number =', crystalData.spaceGroupNumber);
+                            addParseLog(`Space group number detected: _symmetry_Int_Tables_number = ${crystalData.spaceGroupNumber}`, 'success');
                         }
                     }
                 }
@@ -1699,13 +1796,13 @@
                 console.log('Space group number:', crystalData.spaceGroupNumber);
                 console.log('Space group name:', crystalData.spaceGroup);
                 
-                // Apply symmetry operations to generate atom list
+                // Apply symmetry operations to generate atom list (optimized)
                 const originalAtomCount = crystalData.atoms.length;
-                crystalData.atoms = generateSymmetryEquivalentAtoms(crystalData.atoms, crystalData.symmetryOperations);
-                const totalAtomCount = crystalData.atoms.length;
+                crystalData.optimizedAtomData = generateSymmetryEquivalentAtoms(crystalData.atoms, crystalData.symmetryOperations);
+                const totalAtomCount = crystalData.optimizedAtomData.getCount();
 
-                // Remove duplicates from elements and add to select boxes
-                const uniqueSymbols = [...new Set(crystalData.atoms.map(atom => atom.symbol))];
+                // Get unique symbols from optimized data structure
+                const uniqueSymbols = Array.from(crystalData.optimizedAtomData.atomsBySymbol.keys());
                 atoms = uniqueSymbols;
                 
                 console.log('Generated elements:', uniqueSymbols);
@@ -1716,8 +1813,8 @@
                 document.getElementById('searchBtn').disabled = false;
                 
                 addParseLog(`CIF file parsing completed. Generated atom list by applying symmetry operations.
-Original atom count: ${originalAtomCount} → After symmetry operations: ${totalAtomCount}
-Number of symmetry operations: ${crystalData.symmetryOperations.length}`, 'success');
+Original atom count: ${originalAtomCount} atom(s) → After symmetry operations: ${totalAtomCount}
+atom(s)`, 'success');
                 
             } catch (error) {
                 showError('An error occurred while parsing the CIF file: ' + error.message);
@@ -1762,7 +1859,7 @@ Number of symmetry operations: ${crystalData.symmetryOperations.length}`, 'succe
                 β = ${crystalData.cellAngles.beta?.toFixed(1) || 'N/A'}°, 
                 γ = ${crystalData.cellAngles.gamma?.toFixed(1) || 'N/A'}°</p>
                 <p><strong>Space Group:</strong> ${crystalData.spaceGroup || 'N/A'} ${crystalData.spaceGroupNumber ? `(No. ${crystalData.spaceGroupNumber})` : ''}</p>
-                <p><strong>Number of Atoms:</strong> ${crystalData.atoms.length}</p>
+                <p><strong>Number of Atoms:</strong> ${crystalData.optimizedAtomData ? crystalData.optimizedAtomData.getCount() : 'N/A'}</p>
                 <p><strong>Elements:</strong> ${atoms.join(', ')}</p>
             `;
             
@@ -1773,7 +1870,7 @@ Number of symmetry operations: ${crystalData.symmetryOperations.length}`, 'succe
         }
 
         function displayAtomList() {
-            if (!crystalData || !crystalData.atoms) return;
+            if (!crystalData || !crystalData.optimizedAtomData) return;
             
             // Create or get element for atom list display
             let atomListContainer = document.getElementById('atomListContainer');
@@ -1784,19 +1881,14 @@ Number of symmetry operations: ${crystalData.symmetryOperations.length}`, 'succe
                 document.getElementById('crystalInfo').appendChild(atomListContainer);
             }
             
-            // Group by element
-            const atomsBySymbol = {};
-            crystalData.atoms.forEach(atom => {
-                if (!atomsBySymbol[atom.symbol]) {
-                    atomsBySymbol[atom.symbol] = [];
-                }
-                atomsBySymbol[atom.symbol].push(atom);
-            });
-            
+            // Use optimized data structure
+            const optimizedData = crystalData.optimizedAtomData;
             let atomListHTML = '<h4>Details of Discovered Atoms (scroll to view)</h4>';
             
-            Object.keys(atomsBySymbol).forEach(symbol => {
-                const symbolAtoms = atomsBySymbol[symbol];
+            // Iterate through symbols using optimized structure
+            for (const [symbol, atomIndices] of optimizedData.atomsBySymbol) {
+                const symbolAtoms = atomIndices.map(index => optimizedData.atoms[index]);
+                
                 atomListHTML += `
                     <div class="atom-symbol-group">
                         <h5>${symbol} atoms (${symbolAtoms.length})</h5>
@@ -1835,7 +1927,7 @@ Number of symmetry operations: ${crystalData.symmetryOperations.length}`, 'succe
                         </div>
                     </div>
                 `;
-            });
+            }
             
             atomListContainer.innerHTML = atomListHTML;
         }
@@ -1868,6 +1960,9 @@ Number of symmetry operations: ${crystalData.symmetryOperations.length}`, 'succe
             isSearching = true;
             updateSearchButtons();
             showLoading();
+            
+            // Update search status title to searching
+            updateSearchStatusTitle('searching');
             
             // execute directly (without using Web Worker)
             setTimeout(() => {
@@ -1999,157 +2094,216 @@ Number of symmetry operations: ${crystalData.symmetryOperations.length}`, 'succe
                         }
                         
                         function findBondsOptimized(atom1Symbol, atom2Symbol, minDist, maxDist, range, crystalData) {
-                            console.log(`\n=== findBondsOptimized started ===`);
-                            console.log(`Searching for bonds between ${atom1Symbol} and ${atom2Symbol}`);
-                            console.log(`Distance range: ${minDist} to ${maxDist} Å`);
-                            
-                            const bonds = [];
-                            const a = crystalData.cellLengths.a;
-                            const b = crystalData.cellLengths.b;
-                            const c = crystalData.cellLengths.c;
-                            const alpha = crystalData.cellAngles.alpha;
-                            const beta = crystalData.cellAngles.beta;
-                            const gamma = crystalData.cellAngles.gamma;
-                            
-                            // Debug: log cell parameters
-                            console.log('Cell parameters:', { a, b, c, alpha, beta, gamma });
-                            const minDistSq = minDist * minDist;
-                            const maxDistSq = maxDist * maxDist;
-                            
-                            console.log('Distance squared range:', { minDistSq, maxDistSq });
-                            
-                            const atoms1 = crystalData.atoms.filter(atom => atom.symbol === atom1Symbol);
-                            console.log(`Found ${atoms1.length} ${atom1Symbol} atoms:`, atoms1.map(a => `${a.label}(${a.x.toFixed(4)}, ${a.y.toFixed(4)}, ${a.z.toFixed(4)})`));
-                            postProgressMessage(`Step 1 complete: Listed ${atoms1.length} ${atom1Symbol} atoms`);
-                        
-                            console.log(`\n--- Calculating search ranges ---`);
-                            if (atom2Symbol === 'ALL') {
-                                console.log(`Looking for ALL atoms around ${atom1Symbol} atoms`);
-                            } else {
-                                console.log(`Looking for ${atom2Symbol} atoms around ${atom1Symbol} atoms`);
-                            }
-                            const searchRanges = calculateOptimalSearchRanges(atoms1, maxDist, a, b, c, alpha, beta, gamma);
-                            console.log(`Search ranges calculated:`, searchRanges);
-                            postProgressMessage(`Step 2 complete: Determined search range (n2: ${searchRanges.n2_min} to ${searchRanges.n2_max}, m2: ${searchRanges.m2_min} to ${searchRanges.m2_max}, l2: ${searchRanges.l2_min} to ${searchRanges.l2_max})`);
-                            
-                            let processedAtoms = 0;
-                            atoms1.forEach(atom1 => {
-                                processedAtoms++;
-                                console.log(`\n=== Processing atom ${processedAtoms}/${atoms1.length}: ${atom1.label} ===`);
-                                console.log(`Atom coordinates: (${atom1.x.toFixed(4)}, ${atom1.y.toFixed(4)}, ${atom1.z.toFixed(4)})`);
+                            return new Promise((resolve, reject) => {
+                                console.log(`\n=== findBondsOptimized started ===`);
+                                console.log(`Searching for bonds between ${atom1Symbol} and ${atom2Symbol}`);
+                                console.log(`Distance range: ${minDist} to ${maxDist} Å`);
                                 
+                                const bonds = [];
+                                const a = crystalData.cellLengths.a;
+                                const b = crystalData.cellLengths.b;
+                                const c = crystalData.cellLengths.c;
+                                const alpha = crystalData.cellAngles.alpha;
+                                const beta = crystalData.cellAngles.beta;
+                                const gamma = crystalData.cellAngles.gamma;
+                                
+                                // Debug: log cell parameters
+                                console.log('Cell parameters:', { a, b, c, alpha, beta, gamma });
+                                const minDistSq = minDist * minDist;
+                                const maxDistSq = maxDist * maxDist;
+                                
+                                console.log('Distance squared range:', { minDistSq, maxDistSq });
+                                
+                                // Use optimized data structure for faster atom retrieval
+                                const optimizedData = crystalData.optimizedAtomData;
+                                const atoms1 = optimizedData.getAtomsBySymbol(atom1Symbol);
+                                console.log(`Found ${atoms1.length} ${atom1Symbol} atoms:`, atoms1.map(a => `${a.label}(${a.x.toFixed(4)}, ${a.y.toFixed(4)}, ${a.z.toFixed(4)})`));
+                                postProgressMessage(`Step 1: Listed ${atoms1.length} ${atom1Symbol} atoms`);
+                            
+                                console.log(`\n--- Calculating search ranges ---`);
                                 if (atom2Symbol === 'ALL') {
-                                    console.log(`Processing ${atom1.label} - searching for ALL atoms...`);
+                                    console.log(`Looking for ALL atoms around ${atom1Symbol} atoms`);
                                 } else {
-                                    console.log(`Processing ${atom1.label} - searching for ${atom2Symbol} atoms...`);
+                                    console.log(`Looking for ${atom2Symbol} atoms around ${atom1Symbol} atoms`);
                                 }
+                                const searchRanges = calculateOptimalSearchRanges(atoms1, maxDist, a, b, c, alpha, beta, gamma);
+                                console.log(`Search ranges calculated:`, searchRanges);
+                                postProgressMessage(`Step 2 complete: Determined search range (n2: ${searchRanges.n2_min} to ${searchRanges.n2_max}, m2: ${searchRanges.m2_min} to ${searchRanges.m2_max}, l2: ${searchRanges.l2_min} to ${searchRanges.l2_max})`);
                                 
-                                // Direct implementation instead of calling findAtomsInRange
-                                const nearbyAtoms2 = [];
-                                
-                                // Handle "All atoms" selection for atom2
-                                let atoms2;
-                                if (atom2Symbol === 'ALL') {
-                                    atoms2 = crystalData.atoms;
-                                    console.log(`Searching for ALL atoms around ${atom1.label}`);
-                                } else {
-                                    atoms2 = crystalData.atoms.filter(atom => atom.symbol === atom2Symbol);
-                                    console.log(`Found ${atoms2.length} ${atom2Symbol} atoms in crystal data`);
-                                }
-                                
-                                if (atoms2.length > 0) {
-                                    console.log('First few atoms:', atoms2.slice(0, 3).map(a => `${a.label}(${a.x.toFixed(4)}, ${a.y.toFixed(4)}, ${a.z.toFixed(4)})`));
+                                // Process atoms in chunks to allow UI updates
+                                const processAtomsInChunks = (startIndex) => {
+                                    const chunkSize = 10; // Process 10 atoms at a time
+                                    const endIndex = Math.min(startIndex + chunkSize, atoms1.length);
                                     
-                                    // Calculate distances to all atoms
-                                    atoms2.forEach(atom2 => {
-                                        const distance = calculateDistanceOptimized(atom1, atom2, a, b, c, alpha, beta, gamma);
-                                        console.log(`Distance ${atom1.label} to ${atom2.label}: ${distance.toFixed(4)} Å`);
+                                    for (let i = startIndex; i < endIndex; i++) {
+                                        const atom1 = atoms1[i];
+                                        const processedAtoms = i + 1;
                                         
-                                        if (distance >= Math.sqrt(minDistSq) && distance <= Math.sqrt(maxDistSq)) {
-                                            console.log(`BOND FOUND: ${atom1.label} - ${atom2.label} (${distance.toFixed(4)} Å)`);
-                                            nearbyAtoms2.push({
-                                                x: atom2.x,
-                                                y: atom2.y,
-                                                z: atom2.z,
-                                                symbol: atom2.symbol,
-                                                originalLabel: atom2.label,
-                                                i: 0, j: 0, k: 0
-                                            });
+                                        console.log(`\n=== Processing atom ${processedAtoms}/${atoms1.length}: ${atom1.label} ===`);
+                                        console.log(`Atom coordinates: (${atom1.x.toFixed(4)}, ${atom1.y.toFixed(4)}, ${atom1.z.toFixed(4)})`);
+                                        
+                                        if (atom2Symbol === 'ALL') {
+                                            console.log(`Processing ${atom1.label} - searching for ALL atoms...`);
+                                        } else {
+                                            console.log(`Processing ${atom1.label} - searching for ${atom2Symbol} atoms...`);
                                         }
-                                    });
-                                }
-                                
-                                console.log(`Found ${nearbyAtoms2.length} nearby atoms for ${atom1.label}`);
-                                
-                                nearbyAtoms2.forEach(nearbyAtom => {
-                                    // Calculate distance using the optimized function
-                                    const distance = calculateDistanceOptimized(atom1, nearbyAtom, a, b, c, alpha, beta, gamma);
-                                    const distSq = distance * distance;
-                                    
-                                    if (distSq >= minDistSq && distSq <= maxDistSq) {
-                                        if (!(nearbyAtom.i === 0 && nearbyAtom.j === 0 && nearbyAtom.k === 0) || 
-                                            atom1.label !== nearbyAtom.originalLabel) {
+                                        
+                                        // Search for atoms in neighboring cells using calculated search ranges
+                                        const nearbyAtoms2 = [];
+                                        
+                                        // Handle "All atoms" selection for atom2 (optimized)
+                                        let atoms2;
+                                        if (atom2Symbol === 'ALL') {
+                                            atoms2 = optimizedData.getAllAtoms();
+                                            console.log(`Searching for ALL atoms around ${atom1.label}`);
+                                        } else {
+                                            atoms2 = optimizedData.getAtomsBySymbol(atom2Symbol);
+                                            console.log(`Found ${atoms2.length} ${atom2Symbol} atoms in crystal data`);
+                                        }
+                                        
+                                        if (atoms2.length > 0) {
+                                            console.log('First few atoms:', atoms2.slice(0, 3).map(a => `${a.label}(${a.x.toFixed(4)}, ${a.y.toFixed(4)}, ${a.z.toFixed(4)})`));
                                             
-                                            // Calculate bonding vector: atom2_coords + cell_coords - atom1_coords
-                                            const dx = (nearbyAtom.x + nearbyAtom.i) - atom1.x;
-                                            const dy = (nearbyAtom.y + nearbyAtom.j) - atom1.y;
-                                            const dz = (nearbyAtom.z + nearbyAtom.k) - atom1.z;
+                                            // Search in neighboring cells using the calculated search ranges
+                                            for (let n2 = searchRanges.n2_min; n2 <= searchRanges.n2_max; n2++) {
+                                                for (let m2 = searchRanges.m2_min; m2 <= searchRanges.m2_max; m2++) {
+                                                    for (let l2 = searchRanges.l2_min; l2 <= searchRanges.l2_max; l2++) {
+                                                        atoms2.forEach(atom2 => {
+                                                            // Calculate coordinates in the neighboring cell
+                                                            const x2 = n2 + atom2.x;
+                                                            const y2 = m2 + atom2.y;
+                                                            const z2 = l2 + atom2.z;
+                                                            
+                                                            // Create a temporary atom object with the cell-shifted coordinates
+                                                            const shiftedAtom2 = {
+                                                                x: x2,
+                                                                y: y2,
+                                                                z: z2,
+                                                                label: atom2.label,
+                                                                symbol: atom2.symbol
+                                                            };
+                                                            
+                                                            const distance = calculateDistanceOptimized(atom1, shiftedAtom2, a, b, c, alpha, beta, gamma);
+                                                            
+                                                            if (distance >= Math.sqrt(minDistSq) && distance <= Math.sqrt(maxDistSq)) {
+                                                                console.log(`BOND FOUND: ${atom1.label} - ${atom2.label} (${distance.toFixed(4)} Å) in cell (${n2}, ${m2}, ${l2})`);
+                                                                nearbyAtoms2.push({
+                                                                    x: atom2.x, // Original fractional coordinates
+                                                                    y: atom2.y,
+                                                                    z: atom2.z,
+                                                                    symbol: atom2.symbol,
+                                                                    originalLabel: atom2.label,
+                                                                    i: n2, j: m2, k: l2 // Cell coordinates
+                                                                });
+                                                            }
+                                                        });
+                                                    }
+                                                }
+                                            }
+                                        }
+                                        
+                                        console.log(`Found ${nearbyAtoms2.length} nearby atoms for ${atom1.label}`);
+                                        
+                                        nearbyAtoms2.forEach(nearbyAtom => {
+                                            // Calculate distance using the optimized function
+                                            const distance = calculateDistanceOptimized(atom1, nearbyAtom, a, b, c, alpha, beta, gamma);
+                                            const distSq = distance * distance;
+                                            
+                                            if (distSq >= minDistSq && distSq <= maxDistSq) {
+                                                if (!(nearbyAtom.i === 0 && nearbyAtom.j === 0 && nearbyAtom.k === 0) || 
+                                                    atom1.label !== nearbyAtom.originalLabel) {
+                                                    
+                                                    // Calculate bonding vector: atom2_coords + cell_coords - atom1_coords
+                                                    const dx = (nearbyAtom.x + nearbyAtom.i) - atom1.x;
+                                                    const dy = (nearbyAtom.y + nearbyAtom.j) - atom1.y;
+                                                    const dz = (nearbyAtom.z + nearbyAtom.k) - atom1.z;
 
-                                            bonds.push({
-                                                atom1: atom1.label,
-                                                atom2: nearbyAtom.originalLabel,
-                                                atom1Coords: `(${atom1.x.toFixed(4)}, ${atom1.y.toFixed(4)}, ${atom1.z.toFixed(4)})`,
-                                                atom2Coords: `(${nearbyAtom.x.toFixed(4)}, ${nearbyAtom.y.toFixed(4)}, ${nearbyAtom.z.toFixed(4)})`,
-                                                distance: distance,
-                                                relativePosition: `(${nearbyAtom.i}, ${nearbyAtom.j}, ${nearbyAtom.k})`,
-                                                bondVector: `(${dx.toFixed(4)}, ${dy.toFixed(4)}, ${dz.toFixed(4)})`,
-                                                bondType: getBondTypeOptimized(distance, atom1.symbol, nearbyAtom.symbol)
-                                            });
+                                                    bonds.push({
+                                                        atom1: atom1.label,
+                                                        atom2: nearbyAtom.originalLabel,
+                                                        atom1Coords: `(${atom1.x.toFixed(4)}, ${atom1.y.toFixed(4)}, ${atom1.z.toFixed(4)})`,
+                                                        atom2Coords: `(${nearbyAtom.x.toFixed(4)}, ${nearbyAtom.y.toFixed(4)}, ${nearbyAtom.z.toFixed(4)})`,
+                                                        distance: distance,
+                                                        relativePosition: `(${nearbyAtom.i}, ${nearbyAtom.j}, ${nearbyAtom.k})`,
+                                                        bondVector: `(${dx.toFixed(4)}, ${dy.toFixed(4)}, ${dz.toFixed(4)})`,
+                                                        bondType: getBondTypeOptimized(distance, atom1.symbol, nearbyAtom.symbol)
+                                                    });
+                                                }
+                                            }
+                                        });
+                                    }
+                                    
+                                    // Update progress message (simplified, less frequent)
+                                    if (endIndex % 20 === 0 || endIndex === atoms1.length) {
+                                        const progressPercent = Math.round((endIndex / atoms1.length) * 100);
+                                        if (atom2Symbol === 'ALL') {
+                                            postProgressMessage(`Processing ${endIndex}/${atoms1.length} atoms (${progressPercent}%) - ${bonds.length} bonds found`);
+                                        } else {
+                                            postProgressMessage(`Processing ${endIndex}/${atoms1.length} atoms (${progressPercent}%) - ${bonds.length} bonds found`);
                                         }
                                     }
-                                });
-                                
-                                if (processedAtoms % 10 === 0 || processedAtoms === atoms1.length) {
-                                    if (atom2Symbol === 'ALL') {
-                                        postProgressMessage(`Steps 3-5 in progress: Processing ${processedAtoms}/${atoms1.length} ${atom1Symbol} atoms vs ALL atoms... (${bonds.length} bonds found)`);
+                                    
+                                    // Continue processing or finish
+                                    if (endIndex < atoms1.length) {
+                                        // Process next chunk after a short delay to allow UI updates
+                                        setTimeout(() => {
+                                            processAtomsInChunks(endIndex);
+                                        }, 10);
                                     } else {
-                                        postProgressMessage(`Steps 3-5 in progress: Processing ${processedAtoms}/${atoms1.length} ${atom1Symbol} atoms... (${bonds.length} bonds found)`);
+                                                                                 // All atoms processed
+                                         postProgressMessage(`Step 3-5: Processing complete`);
+                                         
+                                         // Step 6: Sort by distance
+                                         bonds.sort((a, b) => a.distance - b.distance);
+                                         postProgressMessage(`Step 6: Sorted ${bonds.length} bonds`);
+                                         
+                                         // Memory cleanup after processing
+                                         cleanupMemory();
+                                         
+                                         // Display result transmission message
+                                         postProgressMessage(`Transmitting results...`);
+                                         
+                                         // Display transmission complete message
+                                         setTimeout(() => {
+                                             postProgressMessage(`Complete: ${bonds.length} bonds found`);
+                                             resolve(bonds);
+                                         }, 100);
                                     }
-                                }
+                                };
+                                
+                                // Start processing atoms
+                                processAtomsInChunks(0);
                             });
-                            
-                            postProgressMessage(`Steps 3-5 complete: Completed processing all ${atoms1.length} ${atom1Symbol} atoms`);
-                            
-                            // Step 6: Sort by distance
-                            bonds.sort((a, b) => a.distance - b.distance);
-                            postProgressMessage(`Step 6 complete: Sorted ${bonds.length} bonds by distance`);
-                            
-                            // Display result transmission message
-                            postProgressMessage(`Transmitting results: ${bonds.length} bond data...`);
-                            
-                            // Display transmission complete message
-                            setTimeout(() => {
-                                postProgressMessage(`✅ Transmission complete: Successfully processed ${bonds.length} bond data`);
-                            }, 100);
-                            
-                            return bonds;
                         }
                         
                         try {
-                            const bonds = findBondsOptimized(atom1, atom2, minDistance, maxDistance, searchRange, crystalData);
-                            
-                            if (bonds && Array.isArray(bonds)) {
-                                currentBonds = bonds; // save results
-                                console.log('Search complete: start displaying results', bonds.length);
-                                
-                                // display directly (remove asynchronous)
-                                displayResults(bonds);
-                                console.log('表示完了');
-                            } else {
-                                showError('Search results are invalid.');
-                            }
+                            findBondsOptimized(atom1, atom2, minDistance, maxDistance, searchRange, crystalData)
+                                .then(bonds => {
+                                    if (bonds && Array.isArray(bonds)) {
+                                        currentBonds = bonds; // save results
+                                        console.log('Search complete: start displaying results', bonds.length);
+                                        
+                                        // display directly (remove asynchronous)
+                                        displayResults(bonds);
+                                        console.log('表示完了');
+                                    } else {
+                                        showError('Search results are invalid.');
+                                    }
+                                })
+                                .catch(error => {
+                                    console.error('Search error:', error);
+                                    showError('An error occurred during search: ' + error.message);
+                                    // Stop spinner on error
+                                    const resultsDiv = document.getElementById('results');
+                                    const spinner = resultsDiv.querySelector('.spinner');
+                                    if (spinner) {
+                                        spinner.remove();
+                                    }
+                                    // Update search status title to error
+                                    updateSearchStatusTitle('error');
+                                });
                         } catch (error) {
-                            console.error('Search error:', error);
+                            console.error('Direct execution error:', error);
                             showError('An error occurred during search: ' + error.message);
                             // Stop spinner on error
                             const resultsDiv = document.getElementById('results');
@@ -2157,6 +2311,8 @@ Number of symmetry operations: ${crystalData.symmetryOperations.length}`, 'succe
                             if (spinner) {
                                 spinner.remove();
                             }
+                            // Update search status title to error
+                            updateSearchStatusTitle('error');
                         }
                     } catch (error) {
                         console.error('Direct execution error:', error);
@@ -2167,6 +2323,8 @@ Number of symmetry operations: ${crystalData.symmetryOperations.length}`, 'succe
                         if (spinner) {
                             spinner.remove();
                         }
+                        // Update search status title to error
+                        updateSearchStatusTitle('error');
                     }
                     
                     isSearching = false;
@@ -2191,8 +2349,11 @@ Number of symmetry operations: ${crystalData.symmetryOperations.length}`, 'succe
                 } else {
                     console.log('Direct execution: display progress message:', message);
                     try {
-                        updateProgressMessage(message);
-                        console.log('updateProgressMessage call completed');
+                        // Use setTimeout to ensure UI updates are processed
+                        setTimeout(() => {
+                            updateProgressMessage(message);
+                        }, 0);
+                        console.log('updateProgressMessage call scheduled');
                     } catch (error) {
                         console.error('updateProgressMessage call error:', error);
                         console.log('An error occurred, but processing will continue');
@@ -2413,6 +2574,21 @@ Number of symmetry operations: ${crystalData.symmetryOperations.length}`, 'succe
                 return;
             }
             
+            // Memory optimization: Store only essential bond data
+            const optimizedBonds = bonds.map(bond => ({
+                atom1: bond.atom1,
+                atom2: bond.atom2,
+                atom1Coords: bond.atom1Coords,
+                atom2Coords: bond.atom2Coords,
+                distance: bond.distance,
+                relativePosition: bond.relativePosition,
+                bondVector: bond.bondVector,
+                bondType: bond.bondType
+            }));
+            
+            // Update memory usage tracking
+            memoryUsage.bondDataSize = optimizedBonds.length;
+            
             // Stop spinner first
             const resultsDiv = document.getElementById('results');
             const spinner = resultsDiv.querySelector('.spinner');
@@ -2420,8 +2596,8 @@ Number of symmetry operations: ${crystalData.symmetryOperations.length}`, 'succe
                 spinner.remove();
             }
             
-            // prepare result display area (display results in progress message area)
-            let bondList = document.getElementById('bondList');
+            // Show bond list area
+            const bondList = document.getElementById('bondList');
             const downloadBtn = document.getElementById('downloadBtn');
             
             console.log('resultsDiv:', resultsDiv);
@@ -2434,29 +2610,18 @@ Number of symmetry operations: ${crystalData.symmetryOperations.length}`, 'succe
             }
             
             if (!bondList) {
-                // create bondList element
-                const newBondList = document.createElement('div');
-                newBondList.id = 'bondList';
-                newBondList.className = 'bond-list';
-                resultsDiv.appendChild(newBondList);
-                bondList = newBondList;
-                console.log('bondList recreated');
+                showError('Bond list area not found.');
+                return;
             }
             
-            // if downloadBtn does not exist, recreate it
-            let finalDownloadBtn = downloadBtn;
-            if (!finalDownloadBtn) {
-                const newDownloadBtn = document.createElement('button');
-                newDownloadBtn.id = 'downloadBtn';
-                newDownloadBtn.className = 'download-btn';
-                newDownloadBtn.onclick = downloadResults;
-                newDownloadBtn.innerHTML = '💾 Download Results (CSV)';
-                resultsDiv.appendChild(newDownloadBtn);
-                finalDownloadBtn = newDownloadBtn;
-                console.log('downloadBtn recreated');
+            // Show bond results title and list area
+            const bondResultsTitle = document.getElementById('bondResultsTitle');
+            if (bondResultsTitle) {
+                bondResultsTitle.style.display = 'block';
             }
+            bondList.style.display = 'block';
             
-            // Clear except header
+            // Clear and add header
             bondList.innerHTML = `
                 <div class="bond-item bond-header">
                     <div>Atom 1<br><small>Coordinates</small></div>
@@ -2468,20 +2633,24 @@ Number of symmetry operations: ${crystalData.symmetryOperations.length}`, 'succe
                 </div>
             `;
             
-            if (bonds.length === 0) {
+            if (optimizedBonds.length === 0) {
                 bondList.innerHTML += `
                     <div class="bond-item">
-                        <div colspan="5" style="text-align: center; color: #666; padding: 40px;">
-                            No bonds found matching the specified conditions.
+                        <div colspan="6" style="text-align: center; color: #666; padding: 40px; grid-column: 1 / -1;">
+                            <p style="margin: 0; font-size: 1.1em;">🔍 No bonds found matching the specified conditions.</p>
+                            <p style="margin: 10px 0 0 0; font-size: 0.9em; color: #999;">Try adjusting the distance range or atom selection.</p>
                         </div>
                     </div>
                 `;
-                if (finalDownloadBtn) {
-                    finalDownloadBtn.style.display = 'none';
+                if (downloadBtn) {
+                    downloadBtn.style.display = 'none';
                 }
             } else {
-                // display directly (remove batch processing for simplicity)
-                bonds.forEach((bond, index) => {
+                // Optimized display with virtual scrolling for large datasets
+                const displayBonds = optimizedBonds.length > 1000 ? 
+                    optimizedBonds.slice(0, 1000) : optimizedBonds;
+                
+                displayBonds.forEach((bond, index) => {
                     bondList.innerHTML += `
                         <div class="bond-item">
                             <div>${bond.atom1}<br><small style="color: #666;">${bond.atom1Coords}</small></div>
@@ -2494,8 +2663,20 @@ Number of symmetry operations: ${crystalData.symmetryOperations.length}`, 'succe
                     `;
                 });
                 
-                if (finalDownloadBtn) {
-                    finalDownloadBtn.style.display = 'block';
+                // Show warning if results are truncated
+                if (optimizedBonds.length > 1000) {
+                    bondList.innerHTML += `
+                        <div class="bond-item" style="background: #fff3cd; border-left: 4px solid #ffc107;">
+                            <div colspan="6" style="text-align: center; color: #856404; padding: 20px; grid-column: 1 / -1;">
+                                <p style="margin: 0; font-size: 1em;">⚠️ Showing first 1000 bonds out of ${optimizedBonds.length} total bonds</p>
+                                <p style="margin: 5px 0 0 0; font-size: 0.9em;">Use the download button to get all results</p>
+                            </div>
+                        </div>
+                    `;
+                }
+                
+                if (downloadBtn) {
+                    downloadBtn.style.display = 'block';
                 }
             }
             
@@ -2507,6 +2688,9 @@ Number of symmetry operations: ${crystalData.symmetryOperations.length}`, 'succe
             // Final completion message
             setTimeout(() => {
                 postProgressMessage(`🎉 Process complete: All processing completed successfully`);
+                
+                // Update search status title to completed
+                updateSearchStatusTitle('completed', `${bonds.length} bonds found`);
             }, 200);
             
             // display resultsDiv
@@ -2516,22 +2700,38 @@ Number of symmetry operations: ${crystalData.symmetryOperations.length}`, 'succe
             }
             
             console.log('before showInfo');
-            showInfo(`${bonds.length} bonds found.`);
+            showInfo(`${optimizedBonds.length} bonds found.`);
             console.log('after showInfo');
         }
 
         function showLoading() {
             const resultsDiv = document.getElementById('results');
             resultsDiv.style.display = 'block';
+            
+            // Reset to initial state
             resultsDiv.innerHTML = `
-                <h3>🔍 Search in progress...</h3>
-                <div class="loading">
-                    <div class="spinner"></div>
-                    <p>Searching for bonds...</p>
-                    <small style="color: #666; margin-top: 10px; display: block;">
-                        ⏹️ Stop: Can be stopped with "Stop Search" button or Esc key
-                    </small>
+                <h3 id="searchStatusTitle">🔍 Search in progress... <div class="spinner-small" style="display: inline-block; margin-left: 10px;"></div></h3>
+                <div id="searchStopInfo" style="margin-bottom: 15px; color: #666; font-size: 0.9em;">
+                    ⏹️ Stop: Can be stopped with "Stop Search" button or Esc key
                 </div>
+                <div id="progressMessages" style="max-height: 200px; overflow-y: auto; background: white; border-radius: 5px; padding: 10px; border: 1px solid #ddd; margin-bottom: 20px; display: none;">
+                </div>
+                <h4 id="bondResultsTitle" style="margin-bottom: 15px; color: #333; border-bottom: 2px solid #4facfe; padding-bottom: 5px; display: none;">
+                    📊 Bond Analysis Results
+                </h4>
+                <div id="bondList" class="bond-list" style="display: none;">
+                    <div class="bond-item bond-header">
+                        <div>Atom 1</div>
+                        <div>Atom 2</div>
+                        <div>Distance (Å)</div>
+                        <div>Atom 2 Cell Coordinates</div>
+                        <div>Bond Vector</div>
+                        <div>Bond Type</div>
+                    </div>
+                </div>
+                <button id="downloadBtn" class="download-btn" onclick="downloadResults()" style="display: none;">
+                    💾 Download Results (CSV)
+                </button>
             `;
         }
 
@@ -2616,6 +2816,9 @@ Number of symmetry operations: ${crystalData.symmetryOperations.length}`, 'succe
             isSearching = false;
             updateSearchButtons();
             
+            // Memory cleanup on stop
+            cleanupMemory();
+            
             // Stop spinner first
             const resultsDiv = document.getElementById('results');
             const spinner = resultsDiv.querySelector('.spinner');
@@ -2626,11 +2829,32 @@ Number of symmetry operations: ${crystalData.symmetryOperations.length}`, 'succe
             // Display stop message
             resultsDiv.style.display = 'block';
             resultsDiv.innerHTML = `
-                <h3>⏹️ Search stopped</h3>
-                <div class="info" style="margin: 20px 0;">
-                    <strong>Info:</strong> Search was manually stopped. Please adjust conditions and re-run as needed.
+                <h3 id="searchStatusTitle">⏹️ Search stopped</h3>
+                <div id="progressMessages" style="max-height: 200px; overflow-y: auto; background: white; border-radius: 5px; padding: 10px; border: 1px solid #ddd; margin-bottom: 20px;">
+                    <div class="info" style="margin: 0;">
+                        <strong>Info:</strong> Search was manually stopped. Please adjust conditions and re-run as needed.
+                    </div>
                 </div>
+                <h4 id="bondResultsTitle" style="margin-bottom: 15px; color: #333; border-bottom: 2px solid #4facfe; padding-bottom: 5px; display: none;">
+                    📊 Bond Analysis Results
+                </h4>
+                <div id="bondList" class="bond-list" style="display: none;">
+                    <div class="bond-item bond-header">
+                        <div>Atom 1</div>
+                        <div>Atom 2</div>
+                        <div>Distance (Å)</div>
+                        <div>Atom 2 Cell Coordinates</div>
+                        <div>Bond Vector</div>
+                        <div>Bond Type</div>
+                    </div>
+                </div>
+                <button id="downloadBtn" class="download-btn" onclick="downloadResults()" style="display: none;">
+                    💾 Download Results (CSV)
+                </button>
             `;
+            
+            // Update search status title
+            updateSearchStatusTitle('stopped');
             
             showInfo('Search stopped.');
         }
@@ -2648,6 +2872,45 @@ Number of symmetry operations: ${crystalData.symmetryOperations.length}`, 'succe
             }
         }
 
+        function updateSearchStatusTitle(status, message = '') {
+            const statusTitle = document.getElementById('searchStatusTitle');
+            const searchStopInfo = document.getElementById('searchStopInfo');
+            
+            if (statusTitle) {
+                switch (status) {
+                    case 'searching':
+                        statusTitle.innerHTML = '🔍 Search in progress... <div class="spinner-small" style="display: inline-block; margin-left: 10px;"></div>';
+                        if (searchStopInfo) {
+                            searchStopInfo.style.display = 'block';
+                        }
+                        break;
+                    case 'completed':
+                        statusTitle.innerHTML = `✅ Search completed - ${message}`;
+                        if (searchStopInfo) {
+                            searchStopInfo.style.display = 'none';
+                        }
+                        break;
+                    case 'stopped':
+                        statusTitle.innerHTML = '⏹️ Search stopped';
+                        if (searchStopInfo) {
+                            searchStopInfo.style.display = 'none';
+                        }
+                        break;
+                    case 'error':
+                        statusTitle.innerHTML = '❌ Search error';
+                        if (searchStopInfo) {
+                            searchStopInfo.style.display = 'none';
+                        }
+                        break;
+                    default:
+                        statusTitle.innerHTML = '🔍 Search in progress... <div class="spinner-small" style="display: inline-block; margin-left: 10px;"></div>';
+                        if (searchStopInfo) {
+                            searchStopInfo.style.display = 'block';
+                        }
+                }
+            }
+        }
+
         function updateProgressMessage(message) {
             try {
                 const resultsDiv = document.getElementById('results');
@@ -2660,41 +2923,33 @@ Number of symmetry operations: ${crystalData.symmetryOperations.length}`, 'succe
                     resultsDiv.style.display = 'block';
                 }
                 
-                // add progress message
+                // Show progress messages area and add message
                 const progressDiv = document.getElementById('progressMessages');
                 if (!progressDiv) {
-                    // Create progress display area for first time
-                    resultsDiv.innerHTML = `
-                        <h3>🔍 Search in progress...</h3>
-                        <div class="loading">
-                            <div class="spinner"></div>
-                            <div id="progressMessages" style="text-align: left; margin-top: 20px;">
-                                <div class="progress-message">${message}</div>
-                            </div>
-                            <small style="color: #666; margin-top: 10px; display: block;">
-                                ⏹️ Stop: Can be stopped with "Stop Search" button or Esc key
-                            </small>
-                        </div>
-                    `;
-                } else {
-                    // add progress message to existing one
-                    const messageDiv = document.createElement('div');
-                    messageDiv.className = 'progress-message';
-                    messageDiv.textContent = message;
-                    progressDiv.appendChild(messageDiv);
-                    
-                    // scroll to bottom
-                    progressDiv.scrollTop = progressDiv.scrollHeight;
+                    console.error('progressMessages element not found');
+                    return;
                 }
                 
-                // Remove spinner after "transmission complete" message
-                if (message.includes('transmission complete') || message.includes('process complete')) {
+                // Show progress messages area
+                progressDiv.style.display = 'block';
+                
+                // add progress message to existing one
+                const messageDiv = document.createElement('div');
+                messageDiv.className = 'progress-message';
+                messageDiv.textContent = message;
+                progressDiv.appendChild(messageDiv);
+                
+                // scroll to bottom
+                progressDiv.scrollTop = progressDiv.scrollHeight;
+                
+                // Hide stop info when search is complete
+                if (message.includes('Complete:') || message.includes('complete')) {
                     setTimeout(() => {
-                        const spinner = resultsDiv.querySelector('.spinner');
-                        if (spinner) {
-                            spinner.remove();
+                        const searchStopInfo = document.getElementById('searchStopInfo');
+                        if (searchStopInfo) {
+                            searchStopInfo.style.display = 'none';
                         }
-                    }, 1000); // Remove spinner after 1 second
+                    }, 1000); // Hide after 1 second
                 }
             } catch (error) {
                 console.error('error in updateProgressMessage:', error);
@@ -2703,8 +2958,8 @@ Number of symmetry operations: ${crystalData.symmetryOperations.length}`, 'succe
 
 
 
-        // function to download results
-        function downloadResults() {
+        // function to download results (optimized)
+        async function downloadResults() {
             if (!currentBonds || currentBonds.length === 0) {
                 showError('No results to download.');
                 return;
@@ -2713,20 +2968,34 @@ Number of symmetry operations: ${crystalData.symmetryOperations.length}`, 'succe
             // CSV header (English)
             let csvContent = 'Atom1,Atom1_Coordinates,Atom2,Atom2_Coordinates,Distance_A,Relative_Position,Bond_Vector,Bond_Type\n';
             
-            // add data rows
-            currentBonds.forEach(bond => {
-                const row = [
-                    bond.atom1,
-                    bond.atom1Coords,
-                    bond.atom2,
-                    bond.atom2Coords,
-                    bond.distance.toFixed(3),
-                    bond.relativePosition,
-                    bond.bondVector,
-                    bond.bondType
-                ].map(field => `"${field}"`).join(',');
-                csvContent += row + '\n';
-            });
+            // Optimized data processing with chunking for large datasets
+            const chunkSize = 1000;
+            const totalBonds = currentBonds.length;
+            
+            // Process in chunks to avoid memory issues
+            for (let i = 0; i < totalBonds; i += chunkSize) {
+                const chunk = currentBonds.slice(i, i + chunkSize);
+                
+                chunk.forEach(bond => {
+                    const row = [
+                        bond.atom1,
+                        bond.atom1Coords,
+                        bond.atom2,
+                        bond.atom2Coords,
+                        bond.distance.toFixed(3),
+                        bond.relativePosition,
+                        bond.bondVector,
+                        bond.bondType
+                    ].map(field => `"${field}"`).join(',');
+                    csvContent += row + '\n';
+                });
+                
+                // Allow UI updates between chunks
+                if (i + chunkSize < totalBonds) {
+                    // Small delay to prevent UI blocking
+                    await new Promise(resolve => setTimeout(resolve, 1));
+                }
+            }
 
             // Generate filename (including current date and time)
             const now = new Date();

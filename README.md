@@ -69,12 +69,18 @@ The tool provides detailed information for each discovered bond:
 - **Relative Position**: Spatial relationship between atoms
 - **Bond Type**: Classification based on covalent radii
 
+### Important Note on Space Group Symmetry
+
+When a space group number is detected in your CIF file, BondXtract automatically loads the necessary symmetry operation data. However, the embedded symmetry operations are based on standard setting and origin choice 1. If your crystal structure uses different axis orientations or origin choices, the symmetry operations may not match exactly. In such cases, it is recommended to ensure your CIF file contains explicit symmetry operations for accurate analysis.
+
 ## Technical Details
 
 ### Supported File Formats
 - **CIF (Crystallographic Information File)**: Standard format for crystallographic data
 - **Space Groups**: All 230 crystallographic space groups supported
 - **Atom Types**: All elements from the periodic table
+
+
 
 ### Browser Compatibility
 - **Modern browsers**: Chrome, Firefox, Safari, Edge
