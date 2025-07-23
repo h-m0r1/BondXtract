@@ -11,7 +11,6 @@ BondXtract is a browser-based tool that helps researchers and crystallographers 
 ### 🔍 **Advanced Bond Analysis**
 - **Dual-atom bond search**: Specify two different atom types to find bonds between them
 - **Distance-based filtering**: Set minimum and maximum distance ranges (in Ångströms)
-- **Automatic optimization**: Mathematically optimized search ranges for efficient processing
 - **Real-time progress tracking**: Monitor search progress with detailed status updates
 
 ### 📊 **Crystal Structure Support**
@@ -31,7 +30,6 @@ BondXtract is a browser-based tool that helps researchers and crystallographers 
 - **Simple deployment**: Just place all application files in the same directory
 - **No installation required**: Works immediately without any setup or configuration
 - **Cross-platform**: Runs on any operating system with a modern web browser
-- **Easy sharing**: Simply copy the files to share the application with others
 
 ## Usage
 
@@ -52,12 +50,12 @@ BondXtract is a browser-based tool that helps researchers and crystallographers 
    - **Search Range**: Automatically optimized based on your distance settings
 
 4. **Run Analysis**
-   - Click "Search Bonds)" to start the analysis
+   - Click "Search Bonds" to start the analysis
    - Monitor progress in real-time
    - Use "Stop Search" or press Esc to stop mid-process
 
 5. **Review Results**
-   - View discovered bonds in the results table
+   - View detected bonds in the results table
    - Each bond shows atom types, coordinates, distance, and bond classification
    - Download results as CSV for external analysis
 
@@ -79,8 +77,6 @@ When a space group number is detected in your CIF file, BondXtract automatically
 - **CIF (Crystallographic Information File)**: Standard format for crystallographic data
 - **Space Groups**: All 230 crystallographic space groups supported
 - **Atom Types**: All elements from the periodic table
-
-
 
 ### Browser Compatibility
 - **Modern browsers**: Chrome, Firefox, Safari, Edge
