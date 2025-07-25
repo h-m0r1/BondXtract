@@ -1,4 +1,4 @@
-# BondXtract ⚛️
+# BondXtract ✼
 
 A browser-based tool for exploring and analyzing atomic bonds in crystal structures from CIF (Crystallographic Information File) format.
 
@@ -10,7 +10,7 @@ BondXtract is a browser-based tool that helps researchers and crystallographers 
 
 ### 🔍 **Advanced Bond Analysis**
 - **Dual-atom bond search**: Specify two different atom types to find bonds between them
-- **Distance-based filtering**: Set minimum and maximum distance ranges (in Ångströms)
+- **Distance-based filtering**: Set minimum and maximum distance ranges (in Angstroms)
 - **Real-time progress tracking**: Monitor search progress with detailed status updates
 
 ### 📊 **Crystal Structure Support**
@@ -18,7 +18,7 @@ BondXtract is a browser-based tool that helps researchers and crystallographers 
 - **Space group symmetry**: Automatic detection and application of crystallographic symmetry operations
 - **Embedded symmetry data**: Built-in space group data for 230 crystallographic space groups
 
-### 🎯 **User-Friendly Interface**
+### 🎨 **User-Friendly Interface**
 - **Drag & drop support**: Easy file upload with visual feedback
 - **Export functionality**: Download results as CSV files for further analysis
 
@@ -26,7 +26,7 @@ BondXtract is a browser-based tool that helps researchers and crystallographers 
 - **Progress monitoring**: Real-time search progress with ability to stop mid-process
 - **Offline capable**: Works completely offline without internet connection
 
-### 📦 **Portability**
+### 👜 **Portability**
 - **Simple deployment**: Just place all application files in the same directory
 - **No installation required**: Works immediately without any setup or configuration
 - **Cross-platform**: Runs on any operating system with a modern web browser
@@ -47,7 +47,6 @@ BondXtract is a browser-based tool that helps researchers and crystallographers 
 3. **Configure Search Parameters**
    - **Atom Types**: Select the two atom types you want to analyze
    - **Distance Range**: Set minimum and maximum bond distances
-   - **Search Range**: Automatically optimized based on your distance settings
 
 4. **Run Analysis**
    - Click "Search Bonds" to start the analysis
@@ -79,7 +78,8 @@ When a space group number is detected in your CIF file, BondXtract automatically
 - **Atom Types**: All elements from the periodic table
 
 ### Browser Compatibility
-- **Modern browsers**: Chrome, Firefox, Safari, Edge
+- **Tested on**: Chrome (confirmed working)
+- **Other modern browsers**: Firefox, Safari, Edge (likely compatible but not tested)
 - **No plugins required**: Pure HTML5, CSS3, and JavaScript
 - **Offline capable**: Works completely offline without internet connection
 - **No server required**: Runs entirely in the browser

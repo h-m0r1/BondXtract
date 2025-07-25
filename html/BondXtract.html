@@ -174,23 +174,23 @@
             min-width: 800px;
         }
         
-        /* レスポンシブ対応 */
+        /* responsive */
         @media (max-width: 768px) {
             .bond-item {
-                grid-template-columns: 1fr 1fr 0.7fr 0.5fr 1fr 0.7fr;
+                grid-template-columns: 1fr 1fr 0.3fr 0.5fr 1.3fr 0.9fr 0.4fr 0.2fr;
                 gap: 8px;
                 padding: 8px;
                 font-size: 0.8em;
             }
             
             .bond-list .bond-item {
-                min-width: 700px;
+                min-width: 800px;
             }
         }
 
         .bond-item {
             display: grid;
-            grid-template-columns: 1fr 1fr 0.8fr 0.6fr 1fr 0.8fr;
+            grid-template-columns: 1fr 1fr 0.4fr 0.6fr 1.4fr 0.8fr 0.5fr 0.25fr;
             gap: 10px;
             padding: 12px;
             border-bottom: 1px solid #eee;
@@ -425,7 +425,7 @@
 <body>
     <div class="container">
         <div class="header">
-            <h1>⚛️ BondXtract</h1>
+            <h1>✼ BondXtract</h1>
             <p>Explore and analyze atomic bonds from crystal structure files</p>
             <p style="font-size: 0.9em; opacity: 0.8; margin-top: 5px;" id="versionDisplay">Version Loading...</p>
         </div>
@@ -501,16 +501,18 @@
                 <h4 id="bondResultsTitle" style="margin-bottom: 15px; color: #333; border-bottom: 2px solid #4facfe; padding-bottom: 5px; display: none;">
                     📊 Bond Analysis Results
                 </h4>
-                <div id="bondList" class="bond-list" style="display: none;">
-                    <div class="bond-item bond-header">
-                        <div>Atom 1</div>
-                        <div>Atom 2</div>
-                        <div>Distance (Å)</div>
-                        <div>Atom 2 Cell Coordinates</div>
-                        <div>Bond Vector</div>
-                        <div>Bond Type</div>
+                <div id="displayControls" style="margin-bottom: 15px; display: none;">
+                    <div style="display: flex; align-items: center; gap: 10px; background: #f8f9fa; padding: 10px; border-radius: 8px; border: 1px solid #ddd;">
+                        <label for="uniqueOnlyToggle" style="font-weight: 600; color: #333; margin: 0;">
+                            <input type="checkbox" id="uniqueOnlyToggle" style="margin-right: 8px; transform: scale(1.2);">
+                            Show unique bonds only
+                        </label>
+                        <span id="bondCountInfo" style="color: #666; font-size: 0.9em; margin-left: 10px;">
+                            (Showing all bonds)
+                        </span>
                     </div>
                 </div>
+                <div id="bondList" class="bond-list"></div>
                 <button id="downloadBtn" class="download-btn" onclick="downloadResults()" style="display: none;">
                     💾 Download Results (CSV)
                 </button>
@@ -518,7 +520,7 @@
         </div>
         
         <div style="text-align: center; padding: 20px; background: #f8f9fa; border-top: 1px solid #ddd; color: #666; font-size: 0.9em;">
-            <p id="footerVersion">⚛️ BondXtract - Loading...</p>
+            <p id="footerVersion">✼ BondXtract - Loading...</p>
             <p style="margin-top: 5px; font-size: 0.8em;">A browser-based tool for exploring and analyzing atomic bonds in crystal structures</p>
             <p style="margin-top: 10px; font-size: 0.75em; color: #999;">© 2025 Hitoshi Mori. MIT License.</p>
         </div>
@@ -558,7 +560,7 @@
             // Update footer version display
             const footerVersion = document.getElementById('footerVersion');
             if (footerVersion) {
-                footerVersion.textContent = `⚛️ ${APP_NAME} v${APP_VERSION} - ${APP_DESCRIPTION}`;
+                footerVersion.textContent = `✼ ${APP_NAME} v${APP_VERSION} - ${APP_DESCRIPTION}`;
             }
         });
         
@@ -570,6 +572,9 @@
         let currentWorker = null; // Currently running Web Worker
         let isSearching = false; // Flag indicating if search is in progress
         let currentBonds = []; // Store current search results
+        // Save maxIdentifier for all bonds and unique bonds
+        let maxIdentifierAllBonds = 0;
+        let maxIdentifierUniqueBonds = 0;
         
         // Memory management for large datasets
         let memoryUsage = {
@@ -616,6 +621,17 @@
             }
         });
         
+        // Unique bonds only toggle event listener
+        document.addEventListener('DOMContentLoaded', function() {
+            const uniqueOnlyToggle = document.getElementById('uniqueOnlyToggle');
+            if (uniqueOnlyToggle) {
+                uniqueOnlyToggle.addEventListener('change', function() {
+                    console.log('Toggle changed:', this.checked);
+                    updateBondDisplay();
+                });
+            }
+        });
+        
         const fileUpload = document.getElementById('fileUpload');
         
         fileUpload.addEventListener('dragover', (e) => {
@@ -647,8 +663,116 @@
             }
         }
 
+        // Function to clear all previous data and UI elements
+        function clearAllPreviousData() {
+            console.log('Clearing all previous data...');
+            
+            // Clear global variables
+            crystalData = null;
+            atoms = [];
+            currentBonds = [];
+            currentWorker = null;
+            isSearching = false;
+            maxIdentifierAllBonds = 0;
+            maxIdentifierUniqueBonds = 0;
+            
+            // Reset warning flag
+            window.bondWarningShown = false;
+            
+            // Clear memory usage tracking
+            memoryUsage = {
+                atomDataSize: 0,
+                bondDataSize: 0,
+                lastCleanup: Date.now()
+            };
+            
+            // Clear and hide UI elements
+            const crystalInfo = document.getElementById('crystalInfo');
+            if (crystalInfo) {
+                crystalInfo.style.display = 'none';
+                const crystalDetails = document.getElementById('crystalDetails');
+                if (crystalDetails) crystalDetails.innerHTML = '';
+            }
+            
+            // Clear atom list container
+            const atomListContainer = document.getElementById('atomListContainer');
+            if (atomListContainer) {
+                atomListContainer.remove();
+            }
+            
+            // Clear file parsing log
+            clearParseLog();
+            
+            // Clear results area
+            const results = document.getElementById('results');
+            if (results) {
+                results.style.display = 'none';
+                results.innerHTML = `
+                    <h3 id="searchStatusTitle">🔍 Search in progress...</h3>
+                    <div id="progressMessages" style="max-height: 200px; overflow-y: auto; background: white; border-radius: 5px; padding: 10px; border: 1px solid #ddd; margin-bottom: 20px;">
+                    </div>
+                    <h4 id="bondResultsTitle" style="margin-bottom: 15px; color: #333; border-bottom: 2px solid #4facfe; padding-bottom: 5px; display: none;">
+                        📊 Bond Analysis Results
+                    </h4>
+                    <div id="displayControls" style="margin-bottom: 15px; display: none;">
+                        <div style="display: flex; align-items: center; gap: 10px; background: #f8f9fa; padding: 10px; border-radius: 8px; border: 1px solid #ddd;">
+                            <label for="uniqueOnlyToggle" style="font-weight: 600; color: #333; margin: 0;">
+                                <input type="checkbox" id="uniqueOnlyToggle" style="margin-right: 8px; transform: scale(1.2);">
+                                Show unique bonds only
+                            </label>
+                            <span id="bondCountInfo" style="color: #666; font-size: 0.9em; margin-left: 10px;">
+                                (Showing all bonds)
+                            </span>
+                        </div>
+                    </div>
+                    <div id="bondList" class="bond-list"></div>
+                    <button id="downloadBtn" class="download-btn" onclick="downloadResults()" style="display: none;">
+                        💾 Download Results (CSV)
+                    </button>
+                `;
+            }
+            
+            // Reset atom select options
+            const atom1Select = document.getElementById('atom1');
+            const atom2Select = document.getElementById('atom2');
+            if (atom1Select) {
+                atom1Select.innerHTML = '<option value="">Please select</option>';
+            }
+            if (atom2Select) {
+                atom2Select.innerHTML = '<option value="">Please select</option>';
+            }
+            
+            // Disable search button
+            const searchBtn = document.getElementById('searchBtn');
+            if (searchBtn) {
+                searchBtn.disabled = true;
+            }
+            
+            // Reset search buttons
+            updateSearchButtons();
+            
+            // Remove any existing error/info messages
+            const existingMessages = document.querySelectorAll('.error, .info');
+            existingMessages.forEach(msg => msg.remove());
+            
+            // Remove bond warning if exists
+            const bondWarning = document.getElementById('bondWarningBox');
+            if (bondWarning) {
+                bondWarning.remove();
+            }
+            
+            // Force garbage collection if available
+            cleanupMemory();
+            
+            console.log('All previous data cleared successfully');
+        }
+
         async function handleFile(file) {
             console.log('handleFile called with file:', file.name);
+            
+            // Clear all previous data before processing new file
+            clearAllPreviousData();
+            
             const reader = new FileReader();
             reader.onload = async function(e) {
                 console.log('File read successfully, content length:', e.target.result.length);
@@ -1433,7 +1557,7 @@
                 const line = lines[i].trim();
                 
                 if (line === 'loop_') {
-                    // 新しいloop_ブロックの開始
+                    // Start of a new loop_ block
                     if (currentBlock) {
                         loopBlocks.push(currentBlock);
                     }
@@ -1863,7 +1987,7 @@ atom(s)`, 'success');
                 <p><strong>Elements:</strong> ${atoms.join(', ')}</p>
             `;
             
-            // 原子リストの詳細表示を追加
+            // Add detailed display of atom list
             displayAtomList();
             
             document.getElementById('crystalInfo').style.display = 'block';
@@ -2280,12 +2404,14 @@ atom(s)`, 'success');
                             findBondsOptimized(atom1, atom2, minDistance, maxDistance, searchRange, crystalData)
                                 .then(bonds => {
                                     if (bonds && Array.isArray(bonds)) {
-                                        currentBonds = bonds; // save results
-                                        console.log('Search complete: start displaying results', bonds.length);
+                                        // Apply bond equivalence analysis
+                                        const processedBonds = assignBondIdentifiers(bonds);
+                                        currentBonds = processedBonds; // save results with identifiers
+                                        console.log('Search complete: start displaying results', processedBonds.length);
                                         
                                         // display directly (remove asynchronous)
-                                        displayResults(bonds);
-                                        console.log('表示完了');
+                                        displayResults(processedBonds);
+                                        console.log('Display complete');
                                     } else {
                                         showError('Search results are invalid.');
                                     }
@@ -2583,8 +2709,16 @@ atom(s)`, 'success');
                 distance: bond.distance,
                 relativePosition: bond.relativePosition,
                 bondVector: bond.bondVector,
-                bondType: bond.bondType
+                bondType: bond.bondType,
+                identifier: bond.identifier,
+                unique: bond.unique
             }));
+            
+            // Save maxIdentifier for all bonds and unique bonds
+            maxIdentifierAllBonds = calculateMaxIdentifierForDisplay(optimizedBonds, 200);
+            const uniqueBonds = optimizedBonds.filter(bond => bond.unique === 'T');
+            maxIdentifierUniqueBonds = calculateMaxIdentifierForDisplay(uniqueBonds, 200);
+            console.log('maxIdentifierAllBonds:', maxIdentifierAllBonds, 'maxIdentifierUniqueBonds:', maxIdentifierUniqueBonds);
             
             // Update memory usage tracking
             memoryUsage.bondDataSize = optimizedBonds.length;
@@ -2619,19 +2753,28 @@ atom(s)`, 'success');
             if (bondResultsTitle) {
                 bondResultsTitle.style.display = 'block';
             }
+            
+            // Show display controls
+            const displayControls = document.getElementById('displayControls');
+            if (displayControls) {
+                displayControls.style.display = 'block';
+            }
+            
+            // Update bond count info for initial display
+            const bondCountInfo = document.getElementById('bondCountInfo');
+            if (bondCountInfo) {
+                const targetBondCount = 200;
+                const maxIdentifier = calculateMaxIdentifierForDisplay(optimizedBonds, targetBondCount);
+                const displayBonds = optimizedBonds.filter(bond => bond.identifier <= maxIdentifier);
+                const totalBondsInRange = optimizedBonds.filter(bond => bond.identifier <= maxIdentifier).length;
+                
+                bondCountInfo.textContent = `(Showing ${displayBonds.length} bonds (ID ≤ ${maxIdentifier}) out of ${optimizedBonds.length} total)`;
+            }
+            
             bondList.style.display = 'block';
             
             // Clear and add header
-            bondList.innerHTML = `
-                <div class="bond-item bond-header">
-                    <div>Atom 1<br><small>Coordinates</small></div>
-                    <div>Atom 2<br><small>Coordinates</small></div>
-                    <div>Distance<br><small>(Å)</small></div>
-                    <div>Cell of Atom 2<br><small>(i,j,k)</small></div>
-                    <div>Bond Vector</div>
-                    <div>Bond Type</div>
-                </div>
-            `;
+            addBondListHeader(bondList);
             
             if (optimizedBonds.length === 0) {
                 bondList.innerHTML += `
@@ -2646,9 +2789,13 @@ atom(s)`, 'success');
                     downloadBtn.style.display = 'none';
                 }
             } else {
-                // Optimized display with virtual scrolling for large datasets
-                const displayBonds = optimizedBonds.length > 1000 ? 
-                    optimizedBonds.slice(0, 1000) : optimizedBonds;
+                // Calculate max ID to display approximately 200 bonds
+                const targetBondCount = 200;
+                const maxIdentifier = calculateMaxIdentifierForDisplay(optimizedBonds, targetBondCount);
+                const displayBonds = optimizedBonds.filter(bond => bond.identifier <= maxIdentifier);
+                const totalBondsInRange = optimizedBonds.filter(bond => bond.identifier <= maxIdentifier).length;
+                
+                console.log(`Displaying bonds with ID <= ${maxIdentifier}, showing ${displayBonds.length} bonds out of ${totalBondsInRange} total in range`);
                 
                 displayBonds.forEach((bond, index) => {
                     bondList.innerHTML += `
@@ -2659,21 +2806,14 @@ atom(s)`, 'success');
                             <div><small>${bond.relativePosition}</small></div>
                             <div><small>${bond.bondVector}</small></div>
                             <div><small>${bond.bondType}</small></div>
+                            <div><small>${bond.identifier || 'N/A'}</small></div>
+                            <div><small style="color: ${bond.unique === 'T' ? '#27ae60' : '#e67e22'}; font-weight: bold;">${bond.unique || 'N/A'}</small></div>
                         </div>
                     `;
                 });
                 
-                // Show warning if results are truncated
-                if (optimizedBonds.length > 1000) {
-                    bondList.innerHTML += `
-                        <div class="bond-item" style="background: #fff3cd; border-left: 4px solid #ffc107;">
-                            <div colspan="6" style="text-align: center; color: #856404; padding: 20px; grid-column: 1 / -1;">
-                                <p style="margin: 0; font-size: 1em;">⚠️ Showing first 1000 bonds out of ${optimizedBonds.length} total bonds</p>
-                                <p style="margin: 5px 0 0 0; font-size: 0.9em;">Use the download button to get all results</p>
-                            </div>
-                        </div>
-                    `;
-                }
+                // Add: Show warning from the first time if over 200 items
+                insertBondWarningIfNeeded(optimizedBonds.length);
                 
                 if (downloadBtn) {
                     downloadBtn.style.display = 'block';
@@ -2691,6 +2831,17 @@ atom(s)`, 'success');
                 
                 // Update search status title to completed
                 updateSearchStatusTitle('completed', `${bonds.length} bonds found`);
+                
+                // Re-attach event listener for the toggle after results are displayed
+                const uniqueOnlyToggle = document.getElementById('uniqueOnlyToggle');
+                if (uniqueOnlyToggle) {
+                    // Remove existing listener to avoid duplicates
+                    uniqueOnlyToggle.removeEventListener('change', updateBondDisplay);
+                    uniqueOnlyToggle.addEventListener('change', function() {
+                        console.log('Toggle changed in displayResults:', this.checked);
+                        updateBondDisplay();
+                    });
+                }
             }, 200);
             
             // display resultsDiv
@@ -2719,16 +2870,18 @@ atom(s)`, 'success');
                 <h4 id="bondResultsTitle" style="margin-bottom: 15px; color: #333; border-bottom: 2px solid #4facfe; padding-bottom: 5px; display: none;">
                     📊 Bond Analysis Results
                 </h4>
-                <div id="bondList" class="bond-list" style="display: none;">
-                    <div class="bond-item bond-header">
-                        <div>Atom 1</div>
-                        <div>Atom 2</div>
-                        <div>Distance (Å)</div>
-                        <div>Atom 2 Cell Coordinates</div>
-                        <div>Bond Vector</div>
-                        <div>Bond Type</div>
+                <div id="displayControls" style="margin-bottom: 15px; display: none;">
+                    <div style="display: flex; align-items: center; gap: 10px; background: #f8f9fa; padding: 10px; border-radius: 8px; border: 1px solid #ddd;">
+                        <label for="uniqueOnlyToggle" style="font-weight: 600; color: #333; margin: 0;">
+                            <input type="checkbox" id="uniqueOnlyToggle" style="margin-right: 8px; transform: scale(1.2);">
+                            Show unique bonds only
+                        </label>
+                        <span id="bondCountInfo" style="color: #666; font-size: 0.9em; margin-left: 10px;">
+                            (Showing all bonds)
+                        </span>
                     </div>
                 </div>
+                <div id="bondList" class="bond-list"></div>
                 <button id="downloadBtn" class="download-btn" onclick="downloadResults()" style="display: none;">
                     💾 Download Results (CSV)
                 </button>
@@ -2838,16 +2991,18 @@ atom(s)`, 'success');
                 <h4 id="bondResultsTitle" style="margin-bottom: 15px; color: #333; border-bottom: 2px solid #4facfe; padding-bottom: 5px; display: none;">
                     📊 Bond Analysis Results
                 </h4>
-                <div id="bondList" class="bond-list" style="display: none;">
-                    <div class="bond-item bond-header">
-                        <div>Atom 1</div>
-                        <div>Atom 2</div>
-                        <div>Distance (Å)</div>
-                        <div>Atom 2 Cell Coordinates</div>
-                        <div>Bond Vector</div>
-                        <div>Bond Type</div>
+                <div id="displayControls" style="margin-bottom: 15px; display: none;">
+                    <div style="display: flex; align-items: center; gap: 10px; background: #f8f9fa; padding: 10px; border-radius: 8px; border: 1px solid #ddd;">
+                        <label for="uniqueOnlyToggle" style="font-weight: 600; color: #333; margin: 0;">
+                            <input type="checkbox" id="uniqueOnlyToggle" style="margin-right: 8px; transform: scale(1.2);">
+                            Show unique bonds only
+                        </label>
+                        <span id="bondCountInfo" style="color: #666; font-size: 0.9em; margin-left: 10px;">
+                            (Showing all bonds)
+                        </span>
                     </div>
                 </div>
+                <div id="bondList" class="bond-list"></div>
                 <button id="downloadBtn" class="download-btn" onclick="downloadResults()" style="display: none;">
                     💾 Download Results (CSV)
                 </button>
@@ -2855,6 +3010,17 @@ atom(s)`, 'success');
             
             // Update search status title
             updateSearchStatusTitle('stopped');
+            
+            // Re-attach event listener for the toggle
+            const uniqueOnlyToggle = document.getElementById('uniqueOnlyToggle');
+            if (uniqueOnlyToggle) {
+                // Remove existing listener to avoid duplicates
+                uniqueOnlyToggle.removeEventListener('change', updateBondDisplay);
+                uniqueOnlyToggle.addEventListener('change', function() {
+                    console.log('Toggle changed in stopSearch:', this.checked);
+                    updateBondDisplay();
+                });
+            }
             
             showInfo('Search stopped.');
         }
@@ -2966,7 +3132,7 @@ atom(s)`, 'success');
             }
 
             // CSV header (English)
-            let csvContent = 'Atom1,Atom1_Coordinates,Atom2,Atom2_Coordinates,Distance_A,Relative_Position,Bond_Vector,Bond_Type\n';
+            let csvContent = 'Atom1,Atom1_Coordinates,Atom2,Atom2_Coordinates,Distance_A,Relative_Position,Bond_Vector,Bond_Type,ID,Unique\n';
             
             // Optimized data processing with chunking for large datasets
             const chunkSize = 1000;
@@ -2985,7 +3151,9 @@ atom(s)`, 'success');
                         bond.distance.toFixed(3),
                         bond.relativePosition,
                         bond.bondVector,
-                        bond.bondType
+                        bond.bondType,
+                        bond.identifier || '',
+                        bond.unique || ''
                     ].map(field => `"${field}"`).join(',');
                     csvContent += row + '\n';
                 });
@@ -3065,6 +3233,241 @@ atom(s)`, 'success');
                 description: APP_DESCRIPTION
             };
         }
+
+        // Function to calculate max identifier for displaying approximately target number of bonds
+        function calculateMaxIdentifierForDisplay(bonds, targetCount) {
+            if (!bonds || bonds.length === 0) return 0;
+            
+            // Count bonds by identifier
+            const bondsByIdentifier = new Map();
+            bonds.forEach(bond => {
+                const id = bond.identifier || 0;
+                bondsByIdentifier.set(id, (bondsByIdentifier.get(id) || 0) + 1);
+            });
+            
+            // Sort identifiers
+            const sortedIdentifiers = Array.from(bondsByIdentifier.keys()).sort((a, b) => a - b);
+            
+            // Step 1: Initialize NumDisplayTotal
+            let NumDisplayTotal = 0;
+            let maxIdentifier = 0;
+            
+            // Step 2-4: Process each ID sequentially
+            for (const identifier of sortedIdentifiers) {
+                const bondsInThisId = bondsByIdentifier.get(identifier);
+                NumDisplayTotal += bondsInThisId;
+                
+                // Step 3: Check if exceeding target
+                if (NumDisplayTotal > targetCount) {
+                    // Step 4: Set maxIdentifier to previous ID
+                    maxIdentifier = identifier - 1;
+                    break;
+                } else {
+                    maxIdentifier = identifier;
+                }
+            }
+            
+            // Step 5: Ensure at least one bond is displayed if any exist
+            if (maxIdentifier === 0 && sortedIdentifiers.length > 0) {
+                // If less than 200, return the maximum identifier value
+                maxIdentifier = Math.max(...sortedIdentifiers);
+            }
+            
+            // Calculate actual bonds in range for logging
+            const actualBondsInRange = bonds.filter(bond => bond.identifier <= maxIdentifier).length;
+            
+            console.log(`Target: ${targetCount}, Max ID: ${maxIdentifier}, Bonds in range: ${actualBondsInRange}, Total bonds: ${bonds.length}`);
+            return maxIdentifier;
+        }
+
+        // Function to update bond display based on toggle state
+        function updateBondDisplay() {
+            console.log('updateBondDisplay called');
+            const uniqueOnlyToggle = document.getElementById('uniqueOnlyToggle');
+            const bondCountInfo = document.getElementById('bondCountInfo');
+            const bondList = document.getElementById('bondList');
+            
+            console.log('uniqueOnlyToggle:', uniqueOnlyToggle);
+            console.log('currentBonds:', currentBonds);
+            console.log('currentBonds length:', currentBonds ? currentBonds.length : 'undefined');
+            
+            if (!uniqueOnlyToggle || !currentBonds || currentBonds.length === 0) {
+                console.log('Early return: missing elements or no bonds');
+                return;
+            }
+            
+            const showUniqueOnly = uniqueOnlyToggle.checked;
+            console.log('showUniqueOnly:', showUniqueOnly);
+            
+            const filteredBonds = showUniqueOnly ? 
+                currentBonds.filter(bond => bond.unique === 'T') : 
+                currentBonds;
+            insertBondWarningIfNeeded(filteredBonds.length, showUniqueOnly);
+            
+            console.log('filteredBonds length:', filteredBonds.length);
+            console.log('Sample bonds:', currentBonds.slice(0, 3).map(b => ({ atom1: b.atom1, atom2: b.atom2, unique: b.unique })));
+            
+            // Update count info
+            if (bondCountInfo) {
+                const maxIdentifier = showUniqueOnly ? maxIdentifierUniqueBonds : maxIdentifierAllBonds;
+                const displayBonds = filteredBonds.filter(bond => bond.identifier <= maxIdentifier);
+                const totalBondsInRange = filteredBonds.filter(bond => bond.identifier <= maxIdentifier).length;
+                if (showUniqueOnly) {
+                    bondCountInfo.textContent = `(Showing ${displayBonds.length} unique bonds (ID ≤ ${maxIdentifier}) out of ${filteredBonds.length} unique, ${currentBonds.length} total)`;
+                } else {
+                    bondCountInfo.textContent = `(Showing ${displayBonds.length} bonds (ID ≤ ${maxIdentifier}) out of ${currentBonds.length} total)`;
+                }
+            }
+            
+            // Re-render bond list
+            if (bondList) {
+                bondList.innerHTML = '';
+                addBondListHeader(bondList);
+                // Add data rows below
+                if (filteredBonds.length === 0) {
+                    bondList.innerHTML += `
+                        <div class="bond-item">
+                            <div colspan="8" style="text-align: center; color: #666; padding: 40px; grid-column: 1 / -1;">
+                                <p style="margin: 0; font-size: 1.1em;">🔍 No unique bonds found.</p>
+                                <p style="margin: 10px 0 0 0; font-size: 0.9em; color: #999;">All bonds are equivalent to others.</p>
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    // Use the saved value for maxIdentifier
+                    const maxIdentifier = showUniqueOnly ? maxIdentifierUniqueBonds : maxIdentifierAllBonds;
+                    const displayBonds = filteredBonds.filter(bond => bond.identifier <= maxIdentifier);
+                    const totalBondsInRange = filteredBonds.filter(bond => bond.identifier <= maxIdentifier).length;
+                    console.log(`Displaying bonds with ID <= ${maxIdentifier}, showing ${displayBonds.length} bonds out of ${totalBondsInRange} total in range`);
+                    displayBonds.forEach((bond, index) => {
+                        bondList.innerHTML += `
+                            <div class="bond-item">
+                                <div>${bond.atom1}<br><small style="color: #666;">${bond.atom1Coords}</small></div>
+                                <div>${bond.atom2}<br><small style="color: #666;">${bond.atom2Coords}</small></div>
+                                <div class="distance">${bond.distance.toFixed(3)}</div>
+                                <div><small>${bond.relativePosition}</small></div>
+                                <div><small>${bond.bondVector}</small></div>
+                                <div><small>${bond.bondType}</small></div>
+                                <div><small>${bond.identifier || 'N/A'}</small></div>
+                                <div><small style="color: ${bond.unique === 'T' ? '#27ae60' : '#e67e22'}; font-weight: bold;">${bond.unique || 'N/A'}</small></div>
+                            </div>
+                        `;
+                    });
+                    
+                    // Add: Show warning from the first time if over 200 items (not unique display, so false)
+                    insertBondWarningIfNeeded(filteredBonds.length, showUniqueOnly);
+                }
+            }
+        }
+
+        // Function to extract base atom name (remove _sym{i} suffix)
+        function getBaseAtomName(atomLabel) {
+            return atomLabel.replace(/_sym\d+$/, '');
+        }
+
+        // Function to determine bond equivalence and assign identifiers
+        function assignBondIdentifiers(bonds) {
+            console.log('=== Starting bond equivalence analysis ===');
+            
+            // Group bonds by equivalence criteria
+            const bondGroups = new Map();
+            let nextIdentifier = 1;
+            
+            bonds.forEach((bond, index) => {
+                // Extract base atom names (remove _sym{i} suffix)
+                const baseAtom1 = getBaseAtomName(bond.atom1);
+                const baseAtom2 = getBaseAtomName(bond.atom2);
+                
+                // Create equivalence key: baseAtom1 + baseAtom2 + distance (rounded to 3 decimal places)
+                const distanceKey = Math.round(bond.distance * 1000) / 1000; // Round to 3 decimal places
+                const equivalenceKey = `${baseAtom1}|${baseAtom2}|${distanceKey}`;
+                
+                console.log(`Bond ${index}: ${bond.atom1} - ${bond.atom2} (${bond.distance.toFixed(3)} Å)`);
+                console.log(`  Base names: ${baseAtom1} - ${baseAtom2}`);
+                console.log(`  Equivalence key: ${equivalenceKey}`);
+                
+                if (!bondGroups.has(equivalenceKey)) {
+                    bondGroups.set(equivalenceKey, {
+                        identifier: nextIdentifier++,
+                        bonds: []
+                    });
+                }
+                
+                bondGroups.get(equivalenceKey).bonds.push(index);
+            });
+            
+            // Assign identifier and unique flag to each bond
+            const processedBonds = bonds.map((bond, index) => {
+                const baseAtom1 = getBaseAtomName(bond.atom1);
+                const baseAtom2 = getBaseAtomName(bond.atom2);
+                const distanceKey = Math.round(bond.distance * 1000) / 1000;
+                const equivalenceKey = `${baseAtom1}|${baseAtom2}|${distanceKey}`;
+                
+                const group = bondGroups.get(equivalenceKey);
+                const isFirstInGroup = group.bonds.indexOf(index) === 0;
+                
+                return {
+                    ...bond,
+                    identifier: group.identifier,
+                    unique: isFirstInGroup ? 'T' : 'F'
+                };
+            });
+            
+            console.log(`=== Bond equivalence analysis complete ===`);
+            console.log(`Total bonds: ${bonds.length}`);
+            console.log(`Unique bond groups: ${bondGroups.size}`);
+            
+            // Log summary of each group
+            bondGroups.forEach((group, key) => {
+                const [baseAtom1, baseAtom2, distance] = key.split('|');
+                console.log(`Group ${group.identifier}: ${baseAtom1} - ${baseAtom2} (${distance} Å) - ${group.bonds.length} bonds`);
+            });
+            
+            return processedBonds;
+        }
+
+        // Function to insert/delete warning text
+        function insertBondWarningIfNeeded(bondCount, isUniqueMode) {
+            // Delete existing warning text
+            const oldWarning = document.getElementById('bondWarningBox');
+            if (oldWarning) oldWarning.remove();
+            if (bondCount <= 200) return;
+            const bondList = document.getElementById('bondList');
+            if (!bondList) return;
+            const warningBox = document.createElement('div');
+            warningBox.id = 'bondWarningBox';
+            warningBox.style.background = '#fff3cd';
+            warningBox.style.borderLeft = '4px solid #ffc107';
+            warningBox.style.margin = '0 0 15px 0';
+            warningBox.style.borderRadius = '5px';
+            let mainMsg = isUniqueMode
+                ? '⚠️ Too many unique bonds have been detected. Not all unique bonds are displayed to reduce the load.'
+                : '⚠️ Too many bonds have been detected. Not all of them are displayed to reduce the load.';
+            warningBox.innerHTML = `
+                <div style="text-align: center; color: #856404; padding: 15px;">
+                    <p style="margin: 0; font-size: 1em;">${mainMsg}</p>
+                    <p style="margin: 5px 0 0 0; font-size: 0.9em;">Use the download button to get all results</p>
+                </div>
+            `;
+            bondList.insertAdjacentElement('beforebegin', warningBox);
+        }
+
+        function addBondListHeader(bondList) {
+            if (!bondList) return;
+            bondList.innerHTML += `
+                <div class="bond-item bond-header">
+                    <div>Atom 1<br><small>Coordinates</small></div>
+                    <div>Atom 2<br><small>Coordinates</small></div>
+                    <div>Distance<br><small>(Å)</small></div>
+                    <div>Relative Position<br><small>(i,j,k)</small></div>
+                    <div>Bond Vector</div>
+                    <div>Bond Type</div>
+                    <div>ID</div>
+                    <div>Unique</div>
+                </div>
+            `;
+        }
+
     </script>
     
     <!-- embedded space group data -->
