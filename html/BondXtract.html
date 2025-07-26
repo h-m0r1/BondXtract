@@ -171,26 +171,26 @@
         }
         
         .bond-list .bond-item {
-            min-width: 800px;
+            min-width: 900px;
         }
         
         /* responsive */
         @media (max-width: 768px) {
             .bond-item {
-                grid-template-columns: 1fr 1fr 0.3fr 0.5fr 1.3fr 0.9fr 0.4fr 0.2fr;
+                grid-template-columns: 0.2fr 1fr 1fr 0.3fr 0.5fr 1.3fr 0.9fr 0.4fr 0.2fr;
                 gap: 8px;
                 padding: 8px;
                 font-size: 0.8em;
             }
             
             .bond-list .bond-item {
-                min-width: 800px;
+                min-width: 900px;
             }
         }
 
         .bond-item {
             display: grid;
-            grid-template-columns: 1fr 1fr 0.4fr 0.6fr 1.4fr 0.8fr 0.5fr 0.25fr;
+            grid-template-columns: 0.3fr 1fr 1fr 0.4fr 0.6fr 1.4fr 0.8fr 0.5fr 0.25fr;
             gap: 10px;
             padding: 12px;
             border-bottom: 1px solid #eee;
@@ -572,9 +572,9 @@
         let currentWorker = null; // Currently running Web Worker
         let isSearching = false; // Flag indicating if search is in progress
         let currentBonds = []; // Store current search results
-        // Save maxIdentifier for all bonds and unique bonds
-        let maxIdentifierAllBonds = 0;
-        let maxIdentifierUniqueBonds = 0;
+        // Save maxUniqueID for all bonds and unique bonds
+        let maxUIDAllBonds = 0;
+        let maxUIDUniqueBonds = 0;
         
         // Memory management for large datasets
         let memoryUsage = {
@@ -673,8 +673,8 @@
             currentBonds = [];
             currentWorker = null;
             isSearching = false;
-            maxIdentifierAllBonds = 0;
-            maxIdentifierUniqueBonds = 0;
+            maxUIDAllBonds = 0;
+            maxUIDUniqueBonds = 0;
             
             // Reset warning flag
             window.bondWarningShown = false;
@@ -2090,6 +2090,11 @@ atom(s)`, 'success');
             
             // execute directly (without using Web Worker)
             setTimeout(() => {
+                if (!isSearching) { // Check if search was stopped before starting
+                    console.log('Search was stopped before starting execution');
+                    return;
+                }
+                
                 if (isSearching) { // execute only if not stopped
                     try {
 
@@ -2254,12 +2259,27 @@ atom(s)`, 'success');
                                 console.log(`Search ranges calculated:`, searchRanges);
                                 postProgressMessage(`Step 2 complete: Determined search range (n2: ${searchRanges.n2_min} to ${searchRanges.n2_max}, m2: ${searchRanges.m2_min} to ${searchRanges.m2_max}, l2: ${searchRanges.l2_min} to ${searchRanges.l2_max})`);
                                 
-                                // Process atoms in chunks to allow UI updates
-                                const processAtomsInChunks = (startIndex) => {
-                                    const chunkSize = 10; // Process 10 atoms at a time
-                                    const endIndex = Math.min(startIndex + chunkSize, atoms1.length);
-                                    
-                                    for (let i = startIndex; i < endIndex; i++) {
+                                                // Process atoms in chunks to allow UI updates
+                const processAtomsInChunks = (startIndex) => {
+                    // Check if search was stopped
+                    if (!isSearching) {
+                        console.log('Search was stopped, terminating processing');
+                        postProgressMessage('❌ Search stopped by user');
+                        reject(new Error('Search stopped by user'));
+                        return;
+                    }
+                    
+                    const chunkSize = 10; // Process 10 atoms at a time
+                    const endIndex = Math.min(startIndex + chunkSize, atoms1.length);
+                    
+                    for (let i = startIndex; i < endIndex; i++) {
+                        // Check if search was stopped during processing
+                        if (!isSearching) {
+                            console.log('Search was stopped during atom processing');
+                            postProgressMessage('❌ Search stopped by user');
+                            reject(new Error('Search stopped by user'));
+                            return;
+                        }
                                         const atom1 = atoms1[i];
                                         const processedAtoms = i + 1;
                                         
@@ -2288,10 +2308,18 @@ atom(s)`, 'success');
                                         if (atoms2.length > 0) {
                                             console.log('First few atoms:', atoms2.slice(0, 3).map(a => `${a.label}(${a.x.toFixed(4)}, ${a.y.toFixed(4)}, ${a.z.toFixed(4)})`));
                                             
-                                            // Search in neighboring cells using the calculated search ranges
-                                            for (let n2 = searchRanges.n2_min; n2 <= searchRanges.n2_max; n2++) {
-                                                for (let m2 = searchRanges.m2_min; m2 <= searchRanges.m2_max; m2++) {
-                                                    for (let l2 = searchRanges.l2_min; l2 <= searchRanges.l2_max; l2++) {
+                                                                        // Search in neighboring cells using the calculated search ranges
+                            for (let n2 = searchRanges.n2_min; n2 <= searchRanges.n2_max; n2++) {
+                                // Check if search was stopped during cell iteration
+                                if (!isSearching) {
+                                    console.log('Search was stopped during cell iteration');
+                                    postProgressMessage('❌ Search stopped by user');
+                                    reject(new Error('Search stopped by user'));
+                                    return;
+                                }
+                                
+                                for (let m2 = searchRanges.m2_min; m2 <= searchRanges.m2_max; m2++) {
+                                    for (let l2 = searchRanges.l2_min; l2 <= searchRanges.l2_max; l2++) {
                                                         atoms2.forEach(atom2 => {
                                                             // Calculate coordinates in the neighboring cell
                                                             const x2 = n2 + atom2.x;
@@ -2403,6 +2431,11 @@ atom(s)`, 'success');
                         try {
                             findBondsOptimized(atom1, atom2, minDistance, maxDistance, searchRange, crystalData)
                                 .then(bonds => {
+                                    if (!isSearching) { // Check if search was stopped before displaying results
+                                        console.log('Search was stopped, not displaying results');
+                                        return;
+                                    }
+                                    
                                     if (bonds && Array.isArray(bonds)) {
                                         // Apply bond equivalence analysis
                                         const processedBonds = assignBondIdentifiers(bonds);
@@ -2418,6 +2451,13 @@ atom(s)`, 'success');
                                 })
                                 .catch(error => {
                                     console.error('Search error:', error);
+                                    
+                                    // Handle user-initiated stop differently from actual errors
+                                    if (error.message === 'Search stopped by user') {
+                                        console.log('Search was stopped by user, handled gracefully');
+                                        return; // Don't show error message for user-initiated stops
+                                    }
+                                    
                                     showError('An error occurred during search: ' + error.message);
                                     // Stop spinner on error
                                     const resultsDiv = document.getElementById('results');
@@ -2427,6 +2467,12 @@ atom(s)`, 'success');
                                     }
                                     // Update search status title to error
                                     updateSearchStatusTitle('error');
+                                })
+                                .finally(() => {
+                                    // Always reset search state when processing is complete
+                                    isSearching = false;
+                                    updateSearchButtons();
+                                    console.log('Search processing completed, state reset');
                                 });
                         } catch (error) {
                             console.error('Direct execution error:', error);
@@ -2439,6 +2485,9 @@ atom(s)`, 'success');
                             }
                             // Update search status title to error
                             updateSearchStatusTitle('error');
+                            // Reset search state on error
+                            isSearching = false;
+                            updateSearchButtons();
                         }
                     } catch (error) {
                         console.error('Direct execution error:', error);
@@ -2451,10 +2500,10 @@ atom(s)`, 'success');
                         }
                         // Update search status title to error
                         updateSearchStatusTitle('error');
+                        // Reset search state on error
+                        isSearching = false;
+                        updateSearchButtons();
                     }
-                    
-                    isSearching = false;
-                    updateSearchButtons();
                 }
             }, 100);
         }
@@ -2702,6 +2751,8 @@ atom(s)`, 'success');
             
             // Memory optimization: Store only essential bond data
             const optimizedBonds = bonds.map(bond => ({
+                id: bond.id,
+                duplicated: bond.duplicated,
                 atom1: bond.atom1,
                 atom2: bond.atom2,
                 atom1Coords: bond.atom1Coords,
@@ -2710,15 +2761,17 @@ atom(s)`, 'success');
                 relativePosition: bond.relativePosition,
                 bondVector: bond.bondVector,
                 bondType: bond.bondType,
-                identifier: bond.identifier,
+                uniqueID: bond.uniqueID,
                 unique: bond.unique
             }));
             
-            // Save maxIdentifier for all bonds and unique bonds
-            maxIdentifierAllBonds = calculateMaxIdentifierForDisplay(optimizedBonds, 200);
+            // Save maxUniqueID for all bonds and unique bonds (for unique-only toggle)
+            maxUIDAllBonds = calculateMaxUIDForDisplay(optimizedBonds, 200);
             const uniqueBonds = optimizedBonds.filter(bond => bond.unique === 'T');
-            maxIdentifierUniqueBonds = calculateMaxIdentifierForDisplay(uniqueBonds, 200);
-            console.log('maxIdentifierAllBonds:', maxIdentifierAllBonds, 'maxIdentifierUniqueBonds:', maxIdentifierUniqueBonds);
+            maxUIDUniqueBonds = calculateMaxUIDForDisplay(uniqueBonds, 200);
+            console.log('maxUIDAllBonds:', maxUIDAllBonds, 'maxUIDUniqueBonds:', maxUIDUniqueBonds);
+            
+            // Note: Using UID-based filtering with ID-order display for better duplicate pair visibility
             
             // Update memory usage tracking
             memoryUsage.bondDataSize = optimizedBonds.length;
@@ -2764,11 +2817,10 @@ atom(s)`, 'success');
             const bondCountInfo = document.getElementById('bondCountInfo');
             if (bondCountInfo) {
                 const targetBondCount = 200;
-                const maxIdentifier = calculateMaxIdentifierForDisplay(optimizedBonds, targetBondCount);
-                const displayBonds = optimizedBonds.filter(bond => bond.identifier <= maxIdentifier);
-                const totalBondsInRange = optimizedBonds.filter(bond => bond.identifier <= maxIdentifier).length;
+                const maxUID = calculateMaxUIDForDisplay(optimizedBonds, targetBondCount);
+                const displayBonds = optimizedBonds.filter(bond => bond.uniqueID <= maxUID);
                 
-                bondCountInfo.textContent = `(Showing ${displayBonds.length} bonds (ID ≤ ${maxIdentifier}) out of ${optimizedBonds.length} total)`;
+                bondCountInfo.textContent = `(Showing ${displayBonds.length} bonds (UID ≤ ${maxUID}, sorted by ID) out of ${optimizedBonds.length} total)`;
             }
             
             bondList.style.display = 'block';
@@ -2779,7 +2831,7 @@ atom(s)`, 'success');
             if (optimizedBonds.length === 0) {
                 bondList.innerHTML += `
                     <div class="bond-item">
-                        <div colspan="6" style="text-align: center; color: #666; padding: 40px; grid-column: 1 / -1;">
+                        <div colspan="9" style="text-align: center; color: #666; padding: 40px; grid-column: 1 / -1;">
                             <p style="margin: 0; font-size: 1.1em;">🔍 No bonds found matching the specified conditions.</p>
                             <p style="margin: 10px 0 0 0; font-size: 0.9em; color: #999;">Try adjusting the distance range or atom selection.</p>
                         </div>
@@ -2789,24 +2841,29 @@ atom(s)`, 'success');
                     downloadBtn.style.display = 'none';
                 }
             } else {
-                // Calculate max ID to display approximately 200 bonds
+                // Filter by Unique ID but display in ID order (distance order)
                 const targetBondCount = 200;
-                const maxIdentifier = calculateMaxIdentifierForDisplay(optimizedBonds, targetBondCount);
-                const displayBonds = optimizedBonds.filter(bond => bond.identifier <= maxIdentifier);
-                const totalBondsInRange = optimizedBonds.filter(bond => bond.identifier <= maxIdentifier).length;
+                const maxUID = calculateMaxUIDForDisplay(optimizedBonds, targetBondCount);
+                const filteredBonds = optimizedBonds.filter(bond => bond.uniqueID <= maxUID);
+                // Sort by ID (distance order) for display
+                const displayBonds = filteredBonds.sort((a, b) => a.id - b.id);
                 
-                console.log(`Displaying bonds with ID <= ${maxIdentifier}, showing ${displayBonds.length} bonds out of ${totalBondsInRange} total in range`);
+                console.log(`Displaying bonds with UID <= ${maxUID}, sorted by ID, showing ${displayBonds.length} bonds out of ${optimizedBonds.length} total`);
                 
                 displayBonds.forEach((bond, index) => {
+                    const isDuplicated = bond.duplicated === 'T';
+                    const cellStyle = isDuplicated ? 'background-color: #e8e8e8;' : '';
+                    
                     bondList.innerHTML += `
-                        <div class="bond-item">
+                        <div class="bond-item" style="${cellStyle}">
+                            <div><small>${bond.id || 'N/A'}</small></div>
                             <div>${bond.atom1}<br><small style="color: #666;">${bond.atom1Coords}</small></div>
                             <div>${bond.atom2}<br><small style="color: #666;">${bond.atom2Coords}</small></div>
                             <div class="distance">${bond.distance.toFixed(3)}</div>
                             <div><small>${bond.relativePosition}</small></div>
                             <div><small>${bond.bondVector}</small></div>
                             <div><small>${bond.bondType}</small></div>
-                            <div><small>${bond.identifier || 'N/A'}</small></div>
+                            <div><small>${bond.uniqueID || 'N/A'}</small></div>
                             <div><small style="color: ${bond.unique === 'T' ? '#27ae60' : '#e67e22'}; font-weight: bold;">${bond.unique || 'N/A'}</small></div>
                         </div>
                     `;
@@ -3132,7 +3189,7 @@ atom(s)`, 'success');
             }
 
             // CSV header (English)
-            let csvContent = 'Atom1,Atom1_Coordinates,Atom2,Atom2_Coordinates,Distance_A,Relative_Position,Bond_Vector,Bond_Type,ID,Unique\n';
+            let csvContent = 'ID,Duplicated,Atom1,Atom1_Coordinates,Atom2,Atom2_Coordinates,Distance_A,Relative_Position,Bond_Vector,Bond_Type,Unique_ID,Unique\n';
             
             // Optimized data processing with chunking for large datasets
             const chunkSize = 1000;
@@ -3144,6 +3201,8 @@ atom(s)`, 'success');
                 
                 chunk.forEach(bond => {
                     const row = [
+                        bond.id || '',
+                        bond.duplicated || '',
                         bond.atom1,
                         bond.atom1Coords,
                         bond.atom2,
@@ -3152,7 +3211,7 @@ atom(s)`, 'success');
                         bond.relativePosition,
                         bond.bondVector,
                         bond.bondType,
-                        bond.identifier || '',
+                        bond.uniqueID || '',
                         bond.unique || ''
                     ].map(field => `"${field}"`).join(',');
                     csvContent += row + '\n';
@@ -3234,50 +3293,50 @@ atom(s)`, 'success');
             };
         }
 
-        // Function to calculate max identifier for displaying approximately target number of bonds
-        function calculateMaxIdentifierForDisplay(bonds, targetCount) {
+        // Function to calculate max unique ID for displaying approximately target number of bonds
+        function calculateMaxUIDForDisplay(bonds, targetCount) {
             if (!bonds || bonds.length === 0) return 0;
             
-            // Count bonds by identifier
-            const bondsByIdentifier = new Map();
+            // Count bonds by unique ID
+            const bondsByUID = new Map();
             bonds.forEach(bond => {
-                const id = bond.identifier || 0;
-                bondsByIdentifier.set(id, (bondsByIdentifier.get(id) || 0) + 1);
+                const id = bond.uniqueID || 0;
+                bondsByUID.set(id, (bondsByUID.get(id) || 0) + 1);
             });
             
-            // Sort identifiers
-            const sortedIdentifiers = Array.from(bondsByIdentifier.keys()).sort((a, b) => a - b);
+            // Sort unique IDs
+            const sortedUIDs = Array.from(bondsByUID.keys()).sort((a, b) => a - b);
             
             // Step 1: Initialize NumDisplayTotal
             let NumDisplayTotal = 0;
-            let maxIdentifier = 0;
+            let maxUID = 0;
             
-            // Step 2-4: Process each ID sequentially
-            for (const identifier of sortedIdentifiers) {
-                const bondsInThisId = bondsByIdentifier.get(identifier);
-                NumDisplayTotal += bondsInThisId;
+            // Step 2-4: Process each UID sequentially
+            for (const uid of sortedUIDs) {
+                const bondsInThisUID = bondsByUID.get(uid);
+                NumDisplayTotal += bondsInThisUID;
                 
                 // Step 3: Check if exceeding target
                 if (NumDisplayTotal > targetCount) {
-                    // Step 4: Set maxIdentifier to previous ID
-                    maxIdentifier = identifier - 1;
+                    // Step 4: Set maxUID to previous UID
+                    maxUID = uid - 1;
                     break;
                 } else {
-                    maxIdentifier = identifier;
+                    maxUID = uid;
                 }
             }
             
             // Step 5: Ensure at least one bond is displayed if any exist
-            if (maxIdentifier === 0 && sortedIdentifiers.length > 0) {
-                // If less than 200, return the maximum identifier value
-                maxIdentifier = Math.max(...sortedIdentifiers);
+            if (maxUID === 0 && sortedUIDs.length > 0) {
+                // If less than 200, return the maximum unique ID value
+                maxUID = Math.max(...sortedUIDs);
             }
             
             // Calculate actual bonds in range for logging
-            const actualBondsInRange = bonds.filter(bond => bond.identifier <= maxIdentifier).length;
+            const actualBondsInRange = bonds.filter(bond => bond.uniqueID <= maxUID).length;
             
-            console.log(`Target: ${targetCount}, Max ID: ${maxIdentifier}, Bonds in range: ${actualBondsInRange}, Total bonds: ${bonds.length}`);
-            return maxIdentifier;
+            console.log(`Target: ${targetCount}, Max UID: ${maxUID}, Bonds in range: ${actualBondsInRange}, Total bonds: ${bonds.length}`);
+            return maxUID;
         }
 
         // Function to update bond display based on toggle state
@@ -3309,13 +3368,16 @@ atom(s)`, 'success');
             
             // Update count info
             if (bondCountInfo) {
-                const maxIdentifier = showUniqueOnly ? maxIdentifierUniqueBonds : maxIdentifierAllBonds;
-                const displayBonds = filteredBonds.filter(bond => bond.identifier <= maxIdentifier);
-                const totalBondsInRange = filteredBonds.filter(bond => bond.identifier <= maxIdentifier).length;
                 if (showUniqueOnly) {
-                    bondCountInfo.textContent = `(Showing ${displayBonds.length} unique bonds (ID ≤ ${maxIdentifier}) out of ${filteredBonds.length} unique, ${currentBonds.length} total)`;
+                    // For unique-only mode, use UID-based filtering
+                    const maxUID = maxUIDUniqueBonds;
+                    const displayBonds = filteredBonds.filter(bond => bond.uniqueID <= maxUID);
+                    bondCountInfo.textContent = `(Showing ${displayBonds.length} unique bonds (UID ≤ ${maxUID}) out of ${filteredBonds.length} unique, ${currentBonds.length} total)`;
                 } else {
-                    bondCountInfo.textContent = `(Showing ${displayBonds.length} bonds (ID ≤ ${maxIdentifier}) out of ${currentBonds.length} total)`;
+                    // For all bonds mode, use UID-based filtering but display in ID order
+                    const maxUID = maxUIDAllBonds;
+                    const displayBonds = filteredBonds.filter(bond => bond.uniqueID <= maxUID);
+                    bondCountInfo.textContent = `(Showing ${displayBonds.length} bonds (UID ≤ ${maxUID}, sorted by ID) out of ${currentBonds.length} total)`;
                 }
             }
             
@@ -3327,28 +3389,42 @@ atom(s)`, 'success');
                 if (filteredBonds.length === 0) {
                     bondList.innerHTML += `
                         <div class="bond-item">
-                            <div colspan="8" style="text-align: center; color: #666; padding: 40px; grid-column: 1 / -1;">
+                            <div colspan="9" style="text-align: center; color: #666; padding: 40px; grid-column: 1 / -1;">
                                 <p style="margin: 0; font-size: 1.1em;">🔍 No unique bonds found.</p>
                                 <p style="margin: 10px 0 0 0; font-size: 0.9em; color: #999;">All bonds are equivalent to others.</p>
                             </div>
                         </div>
                     `;
                 } else {
-                    // Use the saved value for maxIdentifier
-                    const maxIdentifier = showUniqueOnly ? maxIdentifierUniqueBonds : maxIdentifierAllBonds;
-                    const displayBonds = filteredBonds.filter(bond => bond.identifier <= maxIdentifier);
-                    const totalBondsInRange = filteredBonds.filter(bond => bond.identifier <= maxIdentifier).length;
-                    console.log(`Displaying bonds with ID <= ${maxIdentifier}, showing ${displayBonds.length} bonds out of ${totalBondsInRange} total in range`);
+                    // Use appropriate filtering based on mode
+                    let displayBonds;
+                    if (showUniqueOnly) {
+                        // For unique-only mode, use UID-based filtering
+                        const maxUID = maxUIDUniqueBonds;
+                        displayBonds = filteredBonds.filter(bond => bond.uniqueID <= maxUID);
+                        console.log(`Displaying unique bonds with UID <= ${maxUID}, showing ${displayBonds.length} bonds out of ${filteredBonds.length} total unique bonds`);
+                    } else {
+                        // For all bonds mode, use UID-based filtering but display in ID order
+                        const maxUID = maxUIDAllBonds;
+                        const filteredByUID = filteredBonds.filter(bond => bond.uniqueID <= maxUID);
+                        // Sort by ID (distance order) for display
+                        displayBonds = filteredByUID.sort((a, b) => a.id - b.id);
+                        console.log(`Displaying bonds with UID <= ${maxUID}, sorted by ID, showing ${displayBonds.length} bonds out of ${currentBonds.length} total bonds`);
+                    }
                     displayBonds.forEach((bond, index) => {
+                        const isDuplicated = bond.duplicated === 'T';
+                        const cellStyle = isDuplicated ? 'background-color: #e8e8e8;' : '';
+                        
                         bondList.innerHTML += `
-                            <div class="bond-item">
+                            <div class="bond-item" style="${cellStyle}">
+                                <div><small>${bond.id || 'N/A'}</small></div>
                                 <div>${bond.atom1}<br><small style="color: #666;">${bond.atom1Coords}</small></div>
                                 <div>${bond.atom2}<br><small style="color: #666;">${bond.atom2Coords}</small></div>
                                 <div class="distance">${bond.distance.toFixed(3)}</div>
                                 <div><small>${bond.relativePosition}</small></div>
                                 <div><small>${bond.bondVector}</small></div>
                                 <div><small>${bond.bondType}</small></div>
-                                <div><small>${bond.identifier || 'N/A'}</small></div>
+                                <div><small>${bond.uniqueID || 'N/A'}</small></div>
                                 <div><small style="color: ${bond.unique === 'T' ? '#27ae60' : '#e67e22'}; font-weight: bold;">${bond.unique || 'N/A'}</small></div>
                             </div>
                         `;
@@ -3365,65 +3441,239 @@ atom(s)`, 'success');
             return atomLabel.replace(/_sym\d+$/, '');
         }
 
+        // Function to check if two bond vectors are opposite (within numerical tolerance)
+        function checkOppositeBondVectors(vector1Str, vector2Str, tolerance = 1e-4) {
+            try {
+                // Parse bond vector strings: "(dx, dy, dz)" -> [dx, dy, dz]
+                const parseVector = (vectorStr) => {
+                    // Remove parentheses and split by commas
+                    const cleaned = vectorStr.replace(/[()]/g, '').trim();
+                    const components = cleaned.split(',').map(comp => parseFloat(comp.trim()));
+                    
+                    if (components.length !== 3 || components.some(comp => isNaN(comp))) {
+                        throw new Error(`Invalid vector format: ${vectorStr}`);
+                    }
+                    
+                    return components;
+                };
+                
+                const vec1 = parseVector(vector1Str);
+                const vec2 = parseVector(vector2Str);
+                
+                console.log(`  Comparing vectors: ${vector1Str} vs ${vector2Str}`);
+                console.log(`  Parsed: [${vec1.join(', ')}] vs [${vec2.join(', ')}]`);
+                
+                // Check if vec2 ≈ -vec1 (within tolerance)
+                const isOpposite = vec1.every((comp1, index) => {
+                    const comp2 = vec2[index];
+                    const opposite = -comp1;
+                    const diff = Math.abs(comp2 - opposite);
+                    const isWithinTolerance = diff <= tolerance;
+                    
+                    console.log(`  Component ${index}: ${comp1} vs ${comp2}, expected opposite: ${opposite}, diff: ${diff.toExponential(3)}, within tolerance: ${isWithinTolerance}`);
+                    
+                    return isWithinTolerance;
+                });
+                
+                console.log(`  Vectors are opposite: ${isOpposite}`);
+                return isOpposite;
+                
+            } catch (error) {
+                console.error(`Error checking opposite bond vectors: ${error.message}`);
+                console.error(`Vector1: "${vector1Str}", Vector2: "${vector2Str}"`);
+                return false; // If parsing fails, assume not opposite
+            }
+        }
+
         // Function to determine bond equivalence and assign identifiers
         function assignBondIdentifiers(bonds) {
             console.log('=== Starting bond equivalence analysis ===');
             
-            // Group bonds by equivalence criteria
-            const bondGroups = new Map();
-            let nextIdentifier = 1;
+            // Step 1: Sort bonds by distance (shortest first)
+            const sortedBonds = [...bonds].sort((a, b) => a.distance - b.distance);
+            console.log(`Step 1: Sorted ${sortedBonds.length} bonds by distance`);
             
-            bonds.forEach((bond, index) => {
-                // Extract base atom names (remove _sym{i} suffix)
-                const baseAtom1 = getBaseAtomName(bond.atom1);
-                const baseAtom2 = getBaseAtomName(bond.atom2);
+            // Step 2: Assign sequential IDs and detect duplicated bonds
+            const bondPairMap = new Map(); // Key: exact atom pair + distance, Value: array of bond info
+            let nextID = 1;
+            
+            const bondsWithID = sortedBonds.map((bond, index) => {
+                const distanceKey = Math.round(bond.distance * 1000) / 1000;
+                const exactPairKey = `${bond.atom1}|${bond.atom2}|${distanceKey}`;
+                const reversePairKey = `${bond.atom2}|${bond.atom1}|${distanceKey}`;
                 
-                // Create equivalence key: baseAtom1 + baseAtom2 + distance (rounded to 3 decimal places)
-                const distanceKey = Math.round(bond.distance * 1000) / 1000; // Round to 3 decimal places
-                const equivalenceKey = `${baseAtom1}|${baseAtom2}|${distanceKey}`;
+                const bondWithID = {
+                    ...bond,
+                    id: nextID,
+                    duplicated: 'F'
+                };
                 
-                console.log(`Bond ${index}: ${bond.atom1} - ${bond.atom2} (${bond.distance.toFixed(3)} Å)`);
-                console.log(`  Base names: ${baseAtom1} - ${baseAtom2}`);
-                console.log(`  Equivalence key: ${equivalenceKey}`);
+                // Check for reverse bonds (A-B vs B-A case)
+                const reverseMatches = bondPairMap.get(reversePairKey) || [];
+                let foundReversePair = false;
                 
-                if (!bondGroups.has(equivalenceKey)) {
-                    bondGroups.set(equivalenceKey, {
-                        identifier: nextIdentifier++,
-                        bonds: []
-                    });
+                for (const existingBond of reverseMatches) {
+                    if (checkOppositeBondVectors(bond.bondVector, existingBond.bondVector)) {
+                        // Found a reverse pair with opposite bond vector
+                        bondWithID.id = existingBond.id; // Use the same ID
+                        bondWithID.duplicated = 'T'; // Mark as duplicated
+                        foundReversePair = true;
+                        console.log(`Found reverse pair: ${bond.atom1}-${bond.atom2} (ID: ${bondWithID.id}) is duplicate of ${existingBond.atom1}-${existingBond.atom2}`);
+                        break;
+                    }
                 }
                 
-                bondGroups.get(equivalenceKey).bonds.push(index);
+                if (!foundReversePair) {
+                    // Register this bond for future reverse lookup
+                    const bondInfo = {
+                        id: nextID,
+                        atom1: bond.atom1,
+                        atom2: bond.atom2,
+                        bondVector: bond.bondVector
+                    };
+                    
+                    if (!bondPairMap.has(exactPairKey)) {
+                        bondPairMap.set(exactPairKey, []);
+                    }
+                    bondPairMap.get(exactPairKey).push(bondInfo);
+                    
+                    nextID++; // Increment ID only for non-duplicated bonds
+                }
+                
+                return bondWithID;
             });
             
-            // Assign identifier and unique flag to each bond
-            const processedBonds = bonds.map((bond, index) => {
+            console.log(`Step 2: Assigned IDs and duplicated flags. Total unique IDs: ${nextID - 1}`);
+            
+            // Step 3: Sort by ID, with Duplicated=F bonds coming first within each ID group
+            bondsWithID.sort((a, b) => {
+                if (a.id !== b.id) {
+                    return a.id - b.id; // Sort by ID first
+                }
+                // Within same ID, put Duplicated=F before Duplicated=T
+                if (a.duplicated === 'F' && b.duplicated === 'T') return -1;
+                if (a.duplicated === 'T' && b.duplicated === 'F') return 1;
+                return 0;
+            });
+            
+            console.log(`Step 3: Sorted by ID with Duplicated=F bonds first`);
+            
+            // Step 4: Assign Unique IDs and unique flags (chemical equivalence)
+            // Rule 1: Group by BaseAtomName combination + distance
+            // Rule 2: Within each group, smallest ID with Duplicated=F gets Unique=T
+            // Rule 3: All groups get sequential UniqueID (1, 2, 3, ...)
+            
+            const bondGroups = new Map();
+            
+            // Group bonds by equivalence rules (OR condition)
+            // Rule 1: Same ID → Same group
+            // Rule 2: Same BaseAtomName combination + Same distance → Same group
+            bondsWithID.forEach((bond, index) => {
                 const baseAtom1 = getBaseAtomName(bond.atom1);
                 const baseAtom2 = getBaseAtomName(bond.atom2);
                 const distanceKey = Math.round(bond.distance * 1000) / 1000;
-                const equivalenceKey = `${baseAtom1}|${baseAtom2}|${distanceKey}`;
+                const chemicalKey = `${baseAtom1}|${baseAtom2}|${distanceKey}`;
                 
-                const group = bondGroups.get(equivalenceKey);
-                const isFirstInGroup = group.bonds.indexOf(index) === 0;
+                let targetGroup = null;
+                let targetKey = null;
                 
-                return {
-                    ...bond,
-                    identifier: group.identifier,
-                    unique: isFirstInGroup ? 'T' : 'F'
-                };
+                // Rule 1: Check if any existing group contains the same ID
+                for (const [key, group] of bondGroups) {
+                    if (group.some(item => item.bond.id === bond.id)) {
+                        targetGroup = group;
+                        targetKey = key;
+                        console.log(`Bond ${bond.id} matched existing group by ID: ${key}`);
+                        break;
+                    }
+                }
+                
+                // Rule 2: If no ID match, check for chemical equivalence
+                if (!targetGroup) {
+                    for (const [key, group] of bondGroups) {
+                        // Extract chemical part from existing group (skip any prefix)
+                        const existingBond = group[0].bond;
+                        const existingBaseAtom1 = getBaseAtomName(existingBond.atom1);
+                        const existingBaseAtom2 = getBaseAtomName(existingBond.atom2);
+                        const existingDistanceKey = Math.round(existingBond.distance * 1000) / 1000;
+                        const existingChemicalKey = `${existingBaseAtom1}|${existingBaseAtom2}|${existingDistanceKey}`;
+                        
+                        if (existingChemicalKey === chemicalKey) {
+                            targetGroup = group;
+                            targetKey = key;
+                            console.log(`Bond ${bond.id} matched existing group by chemistry: ${key}`);
+                            break;
+                        }
+                    }
+                }
+                
+                // Create new group if no match found
+                if (!targetGroup) {
+                    targetKey = chemicalKey;
+                    bondGroups.set(targetKey, []);
+                    targetGroup = bondGroups.get(targetKey);
+                    console.log(`Bond ${bond.id} created new group: ${targetKey}`);
+                }
+                
+                targetGroup.push({ bond, index });
             });
+            
+            // Assign UniqueIDs sequentially and determine unique representatives
+            let uniqueID = 1;
+            const finalBonds = [...bondsWithID]; // Copy array
+            let uniqueCount = 0;
+            
+            bondGroups.forEach((groupBonds, equivalenceKey) => {
+                console.log(`Processing group ${uniqueID} (${equivalenceKey}) with ${groupBonds.length} bonds`);
+                
+                // Find the bond with smallest ID and Duplicated=F
+                let uniqueRepresentative = null;
+                let smallestID = Infinity;
+                
+                for (const {bond, index} of groupBonds) {
+                    if (bond.duplicated === 'F' && bond.id < smallestID) {
+                        smallestID = bond.id;
+                        uniqueRepresentative = index;
+                    }
+                }
+                
+                // Assign UniqueID and unique flags to all bonds in this group
+                for (const {bond, index} of groupBonds) {
+                    finalBonds[index] = {
+                        ...bond,
+                        uniqueID: uniqueID,
+                        unique: (index === uniqueRepresentative) ? 'T' : 'F'
+                    };
+                }
+                
+                if (uniqueRepresentative !== null) {
+                    uniqueCount++;
+                    console.log(`  → UniqueID ${uniqueID}: Representative at index ${uniqueRepresentative}, ID ${finalBonds[uniqueRepresentative].id}`);
+                } else {
+                    console.log(`  → UniqueID ${uniqueID}: No representative (all Duplicated=T)`);
+                }
+                
+                uniqueID++;
+            });
+            
+            console.log(`Step 4: Assigned Unique IDs and unique flags`);
+            
+            // Calculate maxUIDAllBonds for display control
+            if (finalBonds.length > 0) {
+                maxUIDAllBonds = Math.max(...finalBonds.map(bond => bond.uniqueID));
+                console.log(`maxUIDAllBonds set to: ${maxUIDAllBonds}`);
+            }
             
             console.log(`=== Bond equivalence analysis complete ===`);
             console.log(`Total bonds: ${bonds.length}`);
-            console.log(`Unique bond groups: ${bondGroups.size}`);
+            console.log(`Chemical equivalent groups: ${bondGroups.size}`);
+            console.log(`Groups with Unique=T representatives: ${uniqueCount}`);
+            console.log(`Groups without representatives (all Duplicated=T): ${bondGroups.size - uniqueCount}`);
+            console.log(`Sequential IDs assigned: ${nextID - 1}`);
+            console.log(`Unique IDs assigned: ${uniqueID - 1}`);
+            console.log(`Duplicated bonds: ${finalBonds.filter(b => b.duplicated === 'T').length}`);
+            console.log(`Unique representatives: ${finalBonds.filter(b => b.unique === 'T').length}`);
             
-            // Log summary of each group
-            bondGroups.forEach((group, key) => {
-                const [baseAtom1, baseAtom2, distance] = key.split('|');
-                console.log(`Group ${group.identifier}: ${baseAtom1} - ${baseAtom2} (${distance} Å) - ${group.bonds.length} bonds`);
-            });
-            
-            return processedBonds;
+            return finalBonds;
         }
 
         // Function to insert/delete warning text
@@ -3456,13 +3706,14 @@ atom(s)`, 'success');
             if (!bondList) return;
             bondList.innerHTML += `
                 <div class="bond-item bond-header">
+                    <div>ID</div>
                     <div>Atom 1<br><small>Coordinates</small></div>
                     <div>Atom 2<br><small>Coordinates</small></div>
                     <div>Distance<br><small>(Å)</small></div>
                     <div>Relative Position<br><small>(i,j,k)</small></div>
                     <div>Bond Vector</div>
                     <div>Bond Type</div>
-                    <div>ID</div>
+                    <div>Unique ID</div>
                     <div>Unique</div>
                 </div>
             `;
