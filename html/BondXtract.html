@@ -2120,7 +2120,7 @@ atom(s)`, 'success');
                          * Determines bond type based on distance and covalent radii
                          * Bond classification based on covalent radius sum:
                          * - Strong_Bond: distance <= sum(covalent_radii) x 1.2 (typical covalent/ionic bonds)
-                         * - Weak_Bond: 1.2 < distance <= sum(covalent_radii) x 1.5 (hydrogen bonds, van der Waals)
+                         * - Weak_Bond: sum(covalent_radii) x 1.2 < distance <= sum(covalent_radii) x 1.5 (hydrogen bonds, van der Waals)
                          * - Non_Bond: distance > sum(covalent_radii) x 1.5 (no significant interaction)
                          * 
                          * @param {number} distance - Distance between atoms in Angstroms

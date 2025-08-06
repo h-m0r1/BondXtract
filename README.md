@@ -74,7 +74,7 @@ BondXtract includes a feature to determine bond types based on standard covalent
   - Includes typical covalent and ionic bonds
   - Based on Pauling's covalent radius theory and standard crystallographic databases
 
-- **Weak_Bond**: 1.2 < Distance ≤ sum(covalent_radii) × 1.5
+- **Weak_Bond**: sum(covalent_radii) × 1.2 < Distance ≤ sum(covalent_radii) × 1.5
   - Includes hydrogen bonds and van der Waals interactions
   - Common in molecular crystals and biological structures
 
