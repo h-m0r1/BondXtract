@@ -596,7 +596,19 @@
             }
         }
 
+        // Bond classification thresholds based on covalent radius sum
+        // These values are based on standard crystallographic criteria used in:
+        // - Cambridge Structural Database (CSD)
+        // - Pauling's covalent radius theory
+        // - Common molecular mechanics force fields
+        const BOND_THRESHOLDS = {
+            STRONG_BOND_MULTIPLIER: 1.2,  // Configurable threshold for strong bonds (covalent/ionic)
+            WEAK_BOND_MULTIPLIER: 1.5     // Configurable threshold for weak bonds (hydrogen bonds, van der Waals)
+        };
+
         // Covalent radius data (defined once in global scope)
+        // Source: Standard crystallographic databases (CRC Handbook, WebElements, etc.)
+        // These values represent the covalent radius of each element in Angstroms
         const covalentRadii = {
             'H': 0.31, 'He': 0.28, 'Li': 1.28, 'Be': 0.96, 'B': 0.84, 'C': 0.76, 'N': 0.71, 'O': 0.66, 'F': 0.57, 'Ne': 0.58,
             'Na': 1.66, 'Mg': 1.41, 'Al': 1.21, 'Si': 1.11, 'P': 1.07, 'S': 1.05, 'Cl': 1.02, 'Ar': 1.06,
@@ -2104,20 +2116,33 @@ atom(s)`, 'success');
                             updateProgressMessage(message);
                         }
                         
+                        /**
+                         * Determines bond type based on distance and covalent radii
+                         * Bond classification based on covalent radius sum:
+                         * - Strong_Bond: distance <= sum(covalent_radii) x 1.2 (typical covalent/ionic bonds)
+                         * - Weak_Bond: 1.2 < distance <= sum(covalent_radii) x 1.5 (hydrogen bonds, van der Waals)
+                         * - Non_Bond: distance > sum(covalent_radii) x 1.5 (no significant interaction)
+                         * 
+                         * @param {number} distance - Distance between atoms in Angstroms
+                         * @param {string} symbol1 - Element symbol of first atom
+                         * @param {string} symbol2 - Element symbol of second atom
+                         * @returns {string} Bond type classification
+                         */
                         function getBondTypeOptimized(distance, symbol1, symbol2) {
                             
-                            // improved fallback processing
+                            // Improved fallback processing for unknown elements
                             function getEstimatedRadius(symbol) {
                                 if (covalentRadii[symbol]) {
                                     return covalentRadii[symbol];
                                 }
                                 
-                                // estimate atomic number from element symbol
+                                // Estimate atomic number from element symbol
                                 const elementSymbols = ['H', 'He', 'Li', 'Be', 'B', 'C', 'N', 'O', 'F', 'Ne', 'Na', 'Mg', 'Al', 'Si', 'P', 'S', 'Cl', 'Ar', 'K', 'Ca', 'Sc', 'Ti', 'V', 'Cr', 'Mn', 'Fe', 'Co', 'Ni', 'Cu', 'Zn', 'Ga', 'Ge', 'As', 'Se', 'Br', 'Kr', 'Rb', 'Sr', 'Y', 'Zr', 'Nb', 'Mo', 'Tc', 'Ru', 'Rh', 'Pd', 'Ag', 'Cd', 'In', 'Sn', 'Sb', 'Te', 'I', 'Xe', 'Cs', 'Ba', 'La', 'Ce', 'Pr', 'Nd', 'Pm', 'Sm', 'Eu', 'Gd', 'Tb', 'Dy', 'Ho', 'Er', 'Tm', 'Yb', 'Lu', 'Hf', 'Ta', 'W', 'Re', 'Os', 'Ir', 'Pt', 'Au', 'Hg', 'Tl', 'Pb', 'Bi', 'Po', 'At', 'Rn'];
                                 const atomicNumber = elementSymbols.indexOf(symbol) + 1;
                                 
                                 if (atomicNumber > 0) {
-                                    // estimated radius based on atomic number (simplified version)
+                                    // Estimated radius based on atomic number (simplified version)
+                                    // Based on periodic trends in atomic radii
                                     if (atomicNumber <= 10) {
                                         return 0.5 + (atomicNumber * 0.1); // 1st period: 0.6-1.5 Å
                                     } else if (atomicNumber <= 18) {
@@ -2129,7 +2154,7 @@ atom(s)`, 'success');
                                     }
                                 }
                                 
-                                // final fallback
+                                // Final fallback for completely unknown elements
                                 return 1.5;
                             }
                             
@@ -2137,7 +2162,7 @@ atom(s)`, 'success');
                             const r2 = getEstimatedRadius(symbol2);
                             const sumRadii = r1 + r2;
                             
-                            // warning if default value is used
+                            // Warning if default value is used
                             if (!covalentRadii[symbol1] || !covalentRadii[symbol2]) {
                                 const unknownElements = [];
                                 if (!covalentRadii[symbol1]) unknownElements.push(symbol1);
@@ -2145,16 +2170,17 @@ atom(s)`, 'success');
                                 
                                 console.warn(`Warning: Covalent radius data for elements ${unknownElements.join(', ')} does not exist. Using estimated values.`);
                                 
-                                // display warning only once
+                                // Display warning only once
                                 if (!window.bondWarningShown) {
                                     showInfo(`⚠️ Warning: Covalent radius data for elements ${unknownElements.join(', ')} does not exist. Using estimated values. The reliability of the results may be reduced.`);
                                     window.bondWarningShown = true;
                                 }
                             }
                             
-                            if (distance <= sumRadii * 1.2) {
+                            // Bond classification using configurable thresholds
+                            if (distance <= sumRadii * BOND_THRESHOLDS.STRONG_BOND_MULTIPLIER) {
                                 return 'Strong_Bond';
-                            } else if (distance <= sumRadii * 1.5) {
+                            } else if (distance <= sumRadii * BOND_THRESHOLDS.WEAK_BOND_MULTIPLIER) {
                                 return 'Weak_Bond';
                             } else {
                                 return 'Non_Bond';
@@ -2683,20 +2709,33 @@ atom(s)`, 'success');
 
 
 
+        /**
+         * Determines bond type based on distance and covalent radii
+         * Bond classification based on covalent radius sum:
+         * - Strong_Bond: distance ≤ sum(covalent_radii) × 1.2 (typical covalent/ionic bonds)
+         * - Weak_Bond: 1.2 < distance ≤ sum(covalent_radii) × 1.5 (hydrogen bonds, van der Waals)
+         * - Non_Bond: distance > sum(covalent_radii) × 1.5 (no significant interaction)
+         * 
+         * @param {number} distance - Distance between atoms in Angstroms
+         * @param {string} symbol1 - Element symbol of first atom
+         * @param {string} symbol2 - Element symbol of second atom
+         * @returns {string} Bond type classification
+         */
         function getBondTypeOptimized(distance, symbol1, symbol2) {
             
-            // improved fallback processing
+            // Improved fallback processing for unknown elements
             function getEstimatedRadius(symbol) {
                 if (covalentRadii[symbol]) {
                     return covalentRadii[symbol];
                 }
                 
-                // estimate atomic number from element symbol
+                // Estimate atomic number from element symbol
                 const elementSymbols = ['H', 'He', 'Li', 'Be', 'B', 'C', 'N', 'O', 'F', 'Ne', 'Na', 'Mg', 'Al', 'Si', 'P', 'S', 'Cl', 'Ar', 'K', 'Ca', 'Sc', 'Ti', 'V', 'Cr', 'Mn', 'Fe', 'Co', 'Ni', 'Cu', 'Zn', 'Ga', 'Ge', 'As', 'Se', 'Br', 'Kr', 'Rb', 'Sr', 'Y', 'Zr', 'Nb', 'Mo', 'Tc', 'Ru', 'Rh', 'Pd', 'Ag', 'Cd', 'In', 'Sn', 'Sb', 'Te', 'I', 'Xe', 'Cs', 'Ba', 'La', 'Ce', 'Pr', 'Nd', 'Pm', 'Sm', 'Eu', 'Gd', 'Tb', 'Dy', 'Ho', 'Er', 'Tm', 'Yb', 'Lu', 'Hf', 'Ta', 'W', 'Re', 'Os', 'Ir', 'Pt', 'Au', 'Hg', 'Tl', 'Pb', 'Bi', 'Po', 'At', 'Rn'];
                 const atomicNumber = elementSymbols.indexOf(symbol) + 1;
                 
                 if (atomicNumber > 0) {
-                    // estimated radius based on atomic number (simplified version)
+                    // Estimated radius based on atomic number (simplified version)
+                    // Based on periodic trends in atomic radii
                     if (atomicNumber <= 10) {
                         return 0.5 + (atomicNumber * 0.1); // 1st period: 0.6-1.5 Å
                     } else if (atomicNumber <= 18) {
@@ -2708,7 +2747,7 @@ atom(s)`, 'success');
                     }
                 }
                 
-                // final fallback
+                // Final fallback for completely unknown elements
                 return 1.5;
             }
             
@@ -2716,7 +2755,7 @@ atom(s)`, 'success');
             const r2 = getEstimatedRadius(symbol2);
             const sumRadii = r1 + r2;
             
-            // warning if default value is used
+            // Warning if default value is used
             if (!covalentRadii[symbol1] || !covalentRadii[symbol2]) {
                 const unknownElements = [];
                 if (!covalentRadii[symbol1]) unknownElements.push(symbol1);
@@ -2724,16 +2763,17 @@ atom(s)`, 'success');
                 
                 console.warn(`Warning: Covalent radius data for elements ${unknownElements.join(', ')} does not exist. Using estimated values.`);
                 
-                // display warning only once
+                // Display warning only once
                 if (!window.bondWarningShown) {
                     showInfo(`⚠️ Warning: Covalent radius data for elements ${unknownElements.join(', ')} does not exist. Using estimated values. The reliability of the results may be reduced.`);
                     window.bondWarningShown = true;
                 }
             }
             
-            if (distance <= sumRadii * 1.2) {
+            // Bond classification using configurable thresholds
+            if (distance <= sumRadii * BOND_THRESHOLDS.STRONG_BOND_MULTIPLIER) {
                 return 'Strong_Bond';
-            } else if (distance <= sumRadii * 1.5) {
+            } else if (distance <= sumRadii * BOND_THRESHOLDS.WEAK_BOND_MULTIPLIER) {
                 return 'Weak_Bond';
             } else {
                 return 'Non_Bond';

@@ -66,9 +66,31 @@ The tool provides detailed information for each discovered bond:
 - **Relative Position**: Spatial relationship between atoms
 - **Bond Type**: Classification based on covalent radii
 
+### Bond Classification Methodology
+
+BondXtract includes a feature to determine bond types based on standard covalent radii of ions. This feature should be used as a guideline only. The classification follows these criteria:
+
+- **Strong_Bond**: Distance ≤ sum(covalent_radii) × 1.2
+  - Includes typical covalent and ionic bonds
+  - Based on Pauling's covalent radius theory and standard crystallographic databases
+
+- **Weak_Bond**: 1.2 < Distance ≤ sum(covalent_radii) × 1.5
+  - Includes hydrogen bonds and van der Waals interactions
+  - Common in molecular crystals and biological structures
+
+- **Non_Bond**: Distance > sum(covalent_radii) × 1.5
+  - No significant chemical interaction between atoms
+
+**Scientific Basis**: The classification thresholds are based on standard crystallographic criteria used in:
+- Cambridge Structural Database (CSD)
+- Pauling's covalent radius theory
+- Common molecular mechanics force fields
+
+The covalent radius data is based on standard crystallographic databases (CRC Handbook, WebElements, etc.). For elements without available covalent radius data, estimated values based on atomic number are used.
+
 ### Important Note on Space Group Symmetry
 
-When a space group number is detected in your CIF file, BondXtract automatically loads the necessary symmetry operation data. However, the embedded symmetry operations are based on standard setting and origin choice 1. If your crystal structure uses different axis orientations or origin choices, the symmetry operations may not match exactly. In such cases, it is recommended to ensure your CIF file contains explicit symmetry operations for accurate analysis.
+When a space group number is detected but the corresponding symmetry operations are not found in the CIF file, BondXtract automatically loads the necessary symmetry operations from embedded data. However, the embedded symmetry operations are based on standard setting and origin choice 1. If your crystal structure uses different axis orientations or origin choices, the symmetry operations may not match exactly. To avoid unexpected inconsistencies, it is recommended to ensure your CIF file contains explicit symmetry operations for accurate analysis.
 
 ## Technical Details
 
@@ -76,6 +98,8 @@ When a space group number is detected in your CIF file, BondXtract automatically
 - **CIF (Crystallographic Information File)**: Standard format for crystallographic data
 - **Space Groups**: All 230 crystallographic space groups supported
 - **Atom Types**: All elements from the periodic table
+
+
 
 ### Browser Compatibility
 - **Tested on**: Chrome (confirmed working)
